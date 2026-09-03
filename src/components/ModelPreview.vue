@@ -63,6 +63,9 @@ function buildScadParams() {
     thumbscrew_head_d: c.thumbscrewHeadD,
     thumbscrew_clearance_d: c.thumbscrewClearanceD,
     jig_size: c.jigSize,
+    insert_height: c.insertHeight,
+    pcb_support_radius: c.pcbSupportRadius,
+    pcb_support_offset: c.pcbSupportOffset,
   };
 }
 
