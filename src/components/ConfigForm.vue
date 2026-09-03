@@ -16,176 +16,241 @@ function resetAll() {
 </script>
 
 <template>
-  <el-card header="② 参数调整" shadow="never">
-    <el-form label-position="top" size="default">
-      <!-- PCB 尺寸 -->
-      <el-divider content-position="left">
-        <span style="font-size: 13px; color: #909399">PCB</span>
-      </el-divider>
-      <el-row :gutter="14">
-        <el-col :span="12">
-          <el-form-item label="长 (mm)">
-            <el-input-number
-              v-model="c.pcbSizeX"
-              :min="5"
-              :max="300"
-              :step="0.5"
-              :precision="1"
-              size="large"
-              style="width: 100%"
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="宽 (mm)">
-            <el-input-number
-              v-model="c.pcbSizeY"
-              :min="5"
-              :max="300"
-              :step="0.5"
-              :precision="1"
-              size="large"
-              style="width: 100%"
-            />
-          </el-form-item>
-        </el-col>
-      </el-row>
-      <el-form-item label="厚度 (mm)">
+  <div class="config-form">
+    <!-- PCB -->
+    <div class="section-label">PCB</div>
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">长 (mm)</label>
         <el-input-number
-          v-model="c.pcbThickness"
-          :min="0.4"
-          :max="3.2"
-          :step="0.2"
-          :precision="2"
-          size="large"
-          style="width: 100%"
-        />
-      </el-form-item>
-
-      <!-- 钢网尺寸(正方形) -->
-      <el-divider content-position="left">
-        <span style="font-size: 13px; color: #909399">钢网(正方形)</span>
-      </el-divider>
-      <el-form-item label="钢网边长 (mm)">
-        <el-input-number
-          v-model="c.stencilSize"
+          v-model="c.pcbSizeX"
           :min="5"
-          :max="500"
-          :step="1"
+          :max="300"
+          :step="0.5"
           :precision="1"
-          size="large"
+          size="default"
           style="width: 100%"
         />
-      </el-form-item>
-      <el-button plain @click="applyStencilFromPcb" style="margin-bottom: 12px">
-        ↻ 钢网 = max(PCB长, PCB宽) + 10mm
-      </el-button>
-
-      <!-- 螺丝布局 -->
-      <el-divider content-position="left">
-        <span style="font-size: 13px; color: #909399">螺丝</span>
-      </el-divider>
-      <el-form-item label="周长间距 (mm)">
-        <el-slider
-          v-model="c.screwSpacing"
-          :min="20"
-          :max="80"
-          :step="5"
-          show-input
-          :show-input-controls="false"
-        />
-      </el-form-item>
-
-      <!-- 夹具整体(正方形) -->
-      <el-divider content-position="left">
-        <span style="font-size: 13px; color: #909399">夹具(正方形,按 20mm 步进)</span>
-      </el-divider>
-      <p class="auto-hint">
-        <el-icon><i-ep-info-filled /></el-icon>
-        自动从钢网尺寸计算: {{ c.stencilSize }} + 30 = {{ c.stencilSize + 30 }} → 进位到 <strong>{{ c.jigSize }}</strong> mm
-        (正方形)。可手动覆盖。
-      </p>
-      <el-form-item label="夹具边长 (mm)">
+      </div>
+      <div class="field">
+        <label class="field-label">宽 (mm)</label>
         <el-input-number
-          v-model="c.jigSize"
-          :min="60"
-          :max="500"
-          :step="20"
-          size="large"
+          v-model="c.pcbSizeY"
+          :min="5"
+          :max="300"
+          :step="0.5"
+          :precision="1"
+          size="default"
           style="width: 100%"
         />
-      </el-form-item>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">厚度 (mm)</label>
+      <el-input-number
+        v-model="c.pcbThickness"
+        :min="0.4"
+        :max="3.2"
+        :step="0.2"
+        :precision="2"
+        size="default"
+        style="width: 100%"
+      />
+    </div>
 
-      <el-divider content-position="left">
-        <span style="font-size: 13px; color: #909399">插板 (PCB 支撑)</span>
-      </el-divider>
-      <el-row :gutter="14">
-        <el-col :span="8">
-          <el-form-item label="插板厚 (mm)">
-            <el-input-number v-model="c.insertHeight" :min="3" :max="20" :step="0.5" size="default" style="width: 100%" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="柱半径 (mm)">
-            <el-input-number v-model="c.pcbSupportRadius" :min="0" :max="10" :step="0.5" size="default" style="width: 100%" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="柱偏移 (mm)">
-            <el-input-number v-model="c.pcbSupportOffset" :min="20" :max="100" :step="1" size="default" style="width: 100%" />
-          </el-form-item>
-        </el-col>
-      </el-row>
+    <!-- 钢网 -->
+    <div class="section-label">钢网（正方形）</div>
+    <div class="field">
+      <label class="field-label">钢网边长 (mm)</label>
+      <el-input-number
+        v-model="c.stencilSize"
+        :min="5"
+        :max="500"
+        :step="1"
+        :precision="1"
+        size="default"
+        style="width: 100%"
+      />
+    </div>
+    <button class="action-chip" @click="applyStencilFromPcb">
+      <svg viewBox="0 0 16 16" width="14" height="14">
+        <path d="M3 8a5 5 0 0 1 8.5-3.5L13 6M13 3v3h-3M13 8a5 5 0 0 1-8.5 3.5L3 10M3 13v-3h3"
+          fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      钢网 = max(长, 宽) + 10mm
+    </button>
 
-      <el-button plain @click="resetAll" style="margin-top: 8px; width: 100%">
-        重置为默认值
-      </el-button>
-    </el-form>
-  </el-card>
+    <!-- 螺丝 -->
+    <div class="section-label">螺丝</div>
+    <div class="field">
+      <label class="field-label">周长间距 (mm)</label>
+      <el-slider
+        v-model="c.screwSpacing"
+        :min="20"
+        :max="80"
+        :step="5"
+        show-input
+        :show-input-controls="false"
+      />
+    </div>
+
+    <!-- 夹具 -->
+    <div class="section-label">夹具（按 20mm 步进）</div>
+    <div class="auto-hint">
+      <svg viewBox="0 0 16 16" width="14" height="14" class="hint-icon">
+        <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.2" />
+        <path d="M8 7v4M8 5.5v.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+      </svg>
+      <span>
+        自动计算: {{ c.stencilSize }} + 30 = {{ c.stencilSize + 30 }} → 进位到
+        <strong>{{ c.jigSize }}</strong> mm
+      </span>
+    </div>
+    <div class="field">
+      <label class="field-label">夹具边长 (mm)</label>
+      <el-input-number
+        v-model="c.jigSize"
+        :min="60"
+        :max="500"
+        :step="20"
+        size="default"
+        style="width: 100%"
+      />
+    </div>
+
+    <!-- 插板 -->
+    <div class="section-label">插板（PCB 支撑）</div>
+    <div class="field-row field-row-3">
+      <div class="field">
+        <label class="field-label">厚度</label>
+        <el-input-number v-model="c.insertHeight" :min="3" :max="20" :step="0.5" size="small" style="width: 100%" />
+      </div>
+      <div class="field">
+        <label class="field-label">柱半径</label>
+        <el-input-number v-model="c.pcbSupportRadius" :min="0" :max="10" :step="0.5" size="small" style="width: 100%" />
+      </div>
+      <div class="field">
+        <label class="field-label">柱偏移</label>
+        <el-input-number v-model="c.pcbSupportOffset" :min="20" :max="100" :step="1" size="small" style="width: 100%" />
+      </div>
+    </div>
+
+    <button class="reset-btn" @click="resetAll">重置为默认值</button>
+  </div>
 </template>
 
 <style scoped>
-:deep(.el-card__body) {
-  padding: 22px 24px;
+.config-form {
+  padding: 16px;
 }
 
-:deep(.el-form-item) {
-  margin-bottom: 18px;
+.section-label {
+  font-size: 11px;
+  font-weight: var(--font-weight-strong);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 20px 0 12px 0;
 }
 
-:deep(.el-form-item__label) {
-  font-size: 13px;
-  font-weight: 500;
-  color: #303133;
-  padding-bottom: 6px;
+.section-label:first-child {
+  margin-top: 0;
 }
 
-.el-divider {
-  margin: 16px 0 14px 0;
+.field-row {
+  display: flex;
+  gap: 12px;
 }
 
-:deep(.el-divider__text) {
-  font-size: 13px;
-  font-weight: 500;
-  color: #606266;
+.field-row-3 > .field {
+  flex: 1;
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  line-height: 18px;
+  margin-bottom: 4px;
+}
+
+.action-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-full);
+  background: var(--bg-base-default);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+  margin-bottom: 12px;
+}
+
+.action-chip:hover {
+  background: var(--bg-overlay-l1);
+  border-color: var(--border-neutral-l2);
+  color: var(--text-default);
+}
+
+.action-chip svg {
+  color: var(--text-tertiary);
+}
+
+.action-chip:hover svg {
+  color: var(--text-secondary);
 }
 
 .auto-hint {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 14px 0;
-  padding: 10px 12px;
-  background: #ecf5ff;
-  border-left: 3px solid #409eff;
-  border-radius: 4px;
-  color: #606266;
-  font-size: 13px;
-  line-height: 1.5;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px 0;
+  padding: 8px 12px;
+  background: var(--bg-brand-popup);
+  border-radius: var(--radius-6);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.auto-hint .hint-icon {
+  color: var(--bg-brand);
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .auto-hint strong {
-  color: #409eff;
-  font-weight: 600;
+  color: var(--text-brand);
+  font-weight: var(--font-weight-strong);
+  font-family: var(--font-family-metric);
+}
+
+.reset-btn {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-6);
+  background: var(--bg-base-default);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+  margin-top: 8px;
+}
+
+.reset-btn:hover {
+  background: var(--bg-overlay-l1);
+  border-color: var(--border-neutral-l2);
+  color: var(--text-default);
 }
 </style>

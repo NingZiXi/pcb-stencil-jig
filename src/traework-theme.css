@@ -1,0 +1,468 @@
+/**
+ * TraeWork Design System - Theme Application
+ * Applies TraeWork Light-mode tokens to Element Plus.
+ *
+ * Brand: #4B3FE3 (indigo-purple)
+ * Surface: #FFFFFF / #F5F5F5
+ * Typography: SF Pro Text / PingFang SC
+ * Philosophy: Quiet surfaces, restrained borders, type-first hierarchy.
+ */
+
+:root {
+  /* ===== TraeWork Canonical Tokens ===== */
+
+  /* Font families */
+  --font-family-default: "SF Pro Text", "PingFang SC", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-family-heading: "SF Pro", "PingFang SC", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-family-metric: "Inter", "SF Pro Text", "PingFang SC", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Body text styles */
+  --body-xs-font-size: 10px;
+  --body-xs-line-height: 14px;
+  --body-sm-font-size: 11px;
+  --body-sm-line-height: 16px;
+  --body-md-font-size: 12px;
+  --body-md-line-height: 18px;
+  --body-base-font-size: 14px;
+  --body-base-line-height: 20px;
+  --body-base-letter-spacing: -0.02em;
+  --body-lg-font-size: 18px;
+  --body-lg-line-height: 28px;
+
+  /* Heading styles */
+  --heading-3xs-font-size: 11px;
+  --heading-2xs-font-size: 12px;
+  --heading-xs-font-size: 13px;
+  --heading-sm-font-size: 16px;
+  --heading-md-font-size: 20px;
+  --heading-lg-font-size: 22px;
+
+  /* Font weights */
+  --font-weight-default: 400;
+  --font-weight-medium: 500;
+  --font-weight-strong: 600;
+
+  /* Radii */
+  --radius-2: 2px;
+  --radius-4: 4px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --radius-full: 999px;
+
+  /* Spacers */
+  --spacer-2: 2px;
+  --spacer-4: 4px;
+  --spacer-6: 6px;
+  --spacer-8: 8px;
+  --spacer-10: 10px;
+  --spacer-12: 12px;
+  --spacer-16: 16px;
+  --spacer-20: 20px;
+  --spacer-24: 24px;
+  --spacer-32: 32px;
+  --spacer-40: 40px;
+  --spacer-48: 48px;
+
+  /* Icon sizes */
+  --icon-size-12: 12px;
+  --icon-size-14: 14px;
+  --icon-size-16: 16px;
+  --icon-size-20: 20px;
+  --icon-size-24: 24px;
+
+  /* Background surfaces */
+  --bg-base-default: #FFFFFF;
+  --bg-base-secondary: #F5F5F5;
+  --bg-base-tertiary: #E5E5E5;
+  --bg-overlay-l1: rgba(115, 115, 115, 0.08);
+  --bg-overlay-l2: rgba(115, 115, 115, 0.12);
+  --bg-overlay-l3: rgba(115, 115, 115, 0.16);
+  --bg-overlay-l4: rgba(115, 115, 115, 0.20);
+  --bg-menu: #FFFFFF;
+  --bg-invert: #262626;
+
+  /* Brand */
+  --bg-brand: #4B3FE3;
+  --bg-brand-hover: #6A6FFF;
+  --bg-brand-active: #3F31C6;
+  --bg-brand-disabled: rgba(75, 63, 227, 0.22);
+  --bg-brand-popup: rgba(170, 183, 255, 0.36);
+
+  /* Text */
+  --text-default: #171717;
+  --text-secondary: #404040;
+  --text-tertiary: #737373;
+  --text-disabled: #A1A1A1;
+  --text-onbrand: #FFFFFF;
+  --text-brand: #4B3FE3;
+  --text-brand-hover: #6A6FFF;
+
+  /* Icons */
+  --icon-default: #262626;
+  --icon-secondary: #404040;
+  --icon-tertiary: #737373;
+  --icon-disabled: #A1A1A1;
+  --icon-onbrand: #FFFFFF;
+  --icon-brand: #4B3FE3;
+
+  /* Borders */
+  --border-neutral-l1: rgba(115, 115, 115, 0.12);
+  --border-neutral-l2: rgba(115, 115, 115, 0.18);
+  --border-neutral-l3: rgba(115, 115, 115, 0.36);
+  --border-brand: #4B3FE3;
+
+  /* Status */
+  --status-success-default: #15A877;
+  --status-success-surface-l1: rgba(64, 176, 139, 0.12);
+  --status-warning-default: #E27900;
+  --status-warning-surface-l1: rgba(226, 121, 0, 0.12);
+  --status-error-default: #E8463A;
+  --status-error-surface-l1: rgba(232, 70, 58, 0.12);
+  --status-primary-default: #2F74FF;
+  --status-primary-surface-l1: rgba(47, 116, 255, 0.12);
+
+  /* Brand scale */
+  --brand-50: #F2F7FF;
+  --brand-100: #E5EAFF;
+  --brand-200: #CFD8FF;
+  --brand-300: #AAB7FF;
+  --brand-400: #8894FF;
+  --brand-500: #6A6FFF;
+  --brand-600: #4B3FE3;
+  --brand-700: #3F31C6;
+
+  /* Grey scale */
+  --brand-grey-50: #FAFAFA;
+  --brand-grey-100: #F5F5F5;
+  --brand-grey-200: #E5E5E5;
+  --brand-grey-300: #D4D4D4;
+  --brand-grey-400: #A1A1A1;
+  --brand-grey-500: #737373;
+  --brand-grey-600: #525252;
+  --brand-grey-700: #404040;
+  --brand-grey-800: #262626;
+  --brand-grey-900: #171717;
+
+  /* ===== Element Plus Overrides ===== */
+
+  /* Primary color → TraeWork brand */
+  --el-color-primary: #4B3FE3;
+  --el-color-primary-light-3: #6A6FFF;
+  --el-color-primary-light-5: #8894FF;
+  --el-color-primary-light-7: #AAB7FF;
+  --el-color-primary-light-8: #CFD8FF;
+  --el-color-primary-light-9: #E5EAFF;
+  --el-color-primary-dark-2: #3F31C6;
+
+  /* Success */
+  --el-color-success: #15A877;
+  --el-color-success-light-3: #2FB287;
+  --el-color-success-light-5: #5CC4A0;
+  --el-color-success-light-7: #8AD6BD;
+  --el-color-success-light-8: #B0E3D2;
+  --el-color-success-light-9: #E8F5F0;
+  --el-color-success-dark-2: #1E8B56;
+
+  /* Warning */
+  --el-color-warning: #E27900;
+  --el-color-warning-light-3: #F39A35;
+  --el-color-warning-light-5: #F6B368;
+  --el-color-warning-light-7: #FACB9A;
+  --el-color-warning-light-8: #FDD9B8;
+  --el-color-warning-light-9: #FFF3E5;
+  --el-color-warning-dark-2: #C46F11;
+
+  /* Error / Danger */
+  --el-color-error: #E8463A;
+  --el-color-danger: #E8463A;
+  --el-color-error-light-3: #EA574C;
+  --el-color-error-light-5: #ED7E76;
+  --el-color-error-light-7: #F2A59F;
+  --el-color-error-light-8: #F5BCB8;
+  --el-color-error-light-9: #FBE5E3;
+  --el-color-error-dark-2: #C9382F;
+  --el-color-danger-light-3: #EA574C;
+  --el-color-danger-light-5: #ED7E76;
+  --el-color-danger-light-7: #F2A59F;
+  --el-color-danger-light-8: #F5BCB8;
+  --el-color-danger-light-9: #FBE5E3;
+  --el-color-danger-dark-2: #C9382F;
+
+  /* Info */
+  --el-color-info: #737373;
+  --el-color-info-light-3: #8A8A8A;
+  --el-color-info-light-5: #A1A1A1;
+  --el-color-info-light-7: #BABABA;
+  --el-color-info-light-8: #D4D4D4;
+  --el-color-info-light-9: #F2F2F2;
+  --el-color-info-dark-2: #525252;
+
+  /* Text colors */
+  --el-text-color-primary: #171717;
+  --el-text-color-regular: #404040;
+  --el-text-color-secondary: #737373;
+  --el-text-color-placeholder: #A1A1A1;
+  --el-text-color-disabled: #A1A1A1;
+
+  /* Border colors */
+  --el-border-color: rgba(115, 115, 115, 0.18);
+  --el-border-color-light: rgba(115, 115, 115, 0.12);
+  --el-border-color-lighter: rgba(115, 115, 115, 0.08);
+  --el-border-color-extra-light: rgba(115, 115, 115, 0.06);
+  --el-border-color-dark: rgba(115, 115, 115, 0.24);
+  --el-border-color-darker: rgba(115, 115, 115, 0.36);
+
+  /* Fill colors */
+  --el-fill-color: rgba(115, 115, 115, 0.08);
+  --el-fill-color-light: rgba(115, 115, 115, 0.06);
+  --el-fill-color-lighter: rgba(115, 115, 115, 0.04);
+  --el-fill-color-extra-light: rgba(115, 115, 115, 0.02);
+  --el-fill-color-blank: #FFFFFF;
+
+  /* Background colors */
+  --el-bg-color: #FFFFFF;
+  --el-bg-color-page: #F5F5F5;
+  --el-bg-color-overlay: #FFFFFF;
+
+  /* Border radius */
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: 999px;
+
+  /* Font */
+  --el-font-family: "SF Pro Text", "PingFang SC", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --el-font-size-base: 14px;
+  --el-font-size-small: 12px;
+  --el-font-size-extra-small: 11px;
+
+  /* Component-specific */
+  --el-box-shadow: 0 0 0 1px rgba(115, 115, 115, 0.08);
+  --el-box-shadow-light: 0 0 0 1px rgba(115, 115, 115, 0.06);
+  --el-disabled-bg-color: rgba(115, 115, 115, 0.08);
+  --el-disabled-text-color: #A1A1A1;
+  --el-disabled-border-color: rgba(115, 115, 115, 0.12);
+}
+
+/* ===== Element Plus Component Refinements ===== */
+
+/* Buttons: use TraeWork brand for primary, neutral for default */
+.el-button--primary {
+  --el-button-bg-color: var(--bg-brand);
+  --el-button-border-color: var(--bg-brand);
+  --el-button-hover-bg-color: var(--bg-brand-hover);
+  --el-button-hover-border-color: var(--bg-brand-hover);
+  --el-button-active-bg-color: var(--bg-brand-active);
+  --el-button-active-border-color: var(--bg-brand-active);
+  --el-button-text-color: var(--text-onbrand);
+  --el-button-hover-text-color: var(--text-onbrand);
+  --el-button-active-text-color: var(--text-onbrand);
+  font-weight: var(--font-weight-medium);
+}
+
+.el-button--default {
+  --el-button-bg-color: var(--bg-base-default);
+  --el-button-border-color: var(--border-neutral-l2);
+  --el-button-hover-bg-color: var(--bg-overlay-l1);
+  --el-button-hover-border-color: var(--border-neutral-l2);
+  --el-button-hover-text-color: var(--text-default);
+  --el-button-active-bg-color: var(--bg-overlay-l2);
+  --el-button-active-text-color: var(--text-default);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Tabs: neutral selection, no brand underline */
+.el-tabs__nav-wrap::after {
+  background-color: var(--border-neutral-l1);
+  height: 1px;
+}
+
+.el-tabs__item {
+  color: var(--text-tertiary);
+  font-weight: var(--font-weight-medium);
+  font-size: 14px;
+  height: 40px;
+  line-height: 40px;
+  padding: 0 16px;
+}
+
+.el-tabs__item.is-active {
+  color: var(--text-default);
+}
+
+.el-tabs__item:hover {
+  color: var(--text-default);
+}
+
+.el-tabs__active-bar {
+  background-color: var(--text-default);
+  height: 2px;
+}
+
+/* Cards: no shadow, subtle border, secondary surface */
+.el-card {
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-12);
+  box-shadow: none;
+  background: var(--bg-base-default);
+}
+
+.el-card__header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-neutral-l1);
+  font-weight: var(--font-weight-strong);
+  font-size: 13px;
+  color: var(--text-default);
+}
+
+.el-card__body {
+  padding: 16px;
+}
+
+/* Inputs: subtle border, focus uses brand */
+.el-input__wrapper {
+  border-radius: var(--radius-6);
+  box-shadow: 0 0 0 1px var(--border-neutral-l2) inset;
+  background: var(--bg-base-default);
+  transition: box-shadow 0.12s ease;
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--border-neutral-l3) inset;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--bg-brand) inset;
+}
+
+.el-input__inner {
+  font-family: var(--font-family-default);
+  color: var(--text-default);
+}
+
+/* Input number */
+.el-input-number {
+  border-radius: var(--radius-6);
+}
+
+/* Tags: semantic, no heavy colors */
+.el-tag {
+  border-radius: var(--radius-4);
+  font-weight: var(--font-weight-medium);
+  font-size: 11px;
+  height: 20px;
+  line-height: 20px;
+  padding: 0 6px;
+}
+
+.el-tag--success {
+  --el-tag-bg-color: var(--status-success-surface-l1);
+  --el-tag-border-color: transparent;
+  --el-tag-text-color: var(--status-success-default);
+}
+
+.el-tag--warning {
+  --el-tag-bg-color: var(--status-warning-surface-l1);
+  --el-tag-border-color: transparent;
+  --el-tag-text-color: var(--status-warning-default);
+}
+
+.el-tag--info {
+  --el-tag-bg-color: var(--bg-overlay-l1);
+  --el-tag-border-color: transparent;
+  --el-tag-text-color: var(--text-secondary);
+}
+
+/* Sliders */
+.el-slider__bar {
+  background-color: var(--bg-brand);
+}
+
+.el-slider__button {
+  border: 2px solid var(--bg-brand);
+}
+
+.el-slider__runway {
+  background-color: var(--border-neutral-l2);
+}
+
+/* Divider */
+.el-divider {
+  border-top-color: var(--border-neutral-l1);
+}
+
+.el-divider__text {
+  background: var(--bg-base-default);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: var(--font-weight-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 8px;
+}
+
+/* Descriptions */
+.el-descriptions {
+  font-size: 12px;
+}
+
+.el-descriptions__label {
+  color: var(--text-tertiary);
+  font-weight: var(--font-weight-medium);
+}
+
+.el-descriptions__content {
+  color: var(--text-default);
+}
+
+/* Alert */
+.el-alert {
+  border-radius: var(--radius-8);
+  padding: 10px 14px;
+}
+
+.el-alert--error {
+  background-color: var(--status-error-surface-l1);
+  border: 1px solid transparent;
+}
+
+.el-alert--warning {
+  background-color: var(--status-warning-surface-l1);
+  border: 1px solid transparent;
+}
+
+.el-alert--info {
+  background-color: var(--bg-overlay-l1);
+}
+
+.el-alert__title {
+  font-weight: var(--font-weight-medium);
+  font-size: 13px;
+}
+
+/* Form items */
+.el-form-item__label {
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  line-height: 18px;
+  padding-bottom: 4px;
+}
+
+.el-form-item {
+  margin-bottom: 16px;
+}
+
+/* Row/Col gutter */
+.el-row {
+  gap: 12px;
+}
+
+/* Message */
+.el-message {
+  border-radius: var(--radius-8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}

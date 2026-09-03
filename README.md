@@ -5,10 +5,15 @@
 ## 功能
 
 - 📦 **Gerber ZIP 导入** — 拖入 JLCPCB / 嘉立创EDA 导出的 ZIP,自动识别板框文件(`.GKO` / `Edge.Cuts` / `.GM1`),支持异形板框(含 G02/G03 弧线)
+
 - ⚙️ **可调参数** — PCB 尺寸、钢网尺寸、螺丝间距、插板厚度/支撑柱,实时联动
-- 🔩 **多螺丝均匀压紧** — 默认 4 角,可配置每 30~50mm 加 1 颗,大尺寸 PCB 也压得平
+
+- 🔩 **多螺丝均匀压紧** — 默认 4 角,可配置每 30\~50mm 加 1 颗,大尺寸 PCB 也压得平
+
 - 🖥️ **实时 3D 预览** — three.js 直接加载 STL,鼠标旋转/缩放/平移,3 部件后台预热秒切
+
 - 📐 **可复用底座/顶盖** — 夹具按 20mm 步进,相同尺寸的 PCB 共用,只重打 PCB 插板
+
 - 💾 **项目保存/加载** — 整套参数(含异形板框)存为 JSON,方便复用
 
 ## 技术架构
@@ -24,7 +29,9 @@
 ```
 
 - 前端把参数发给 Rust,Rust 写 JSON 并调用 `python/jig_generator.py` 生成 STL
+
 - STL 按参数哈希缓存在前端,切 tab 不重算;应用启动时后台预热 3 个部件
+
 - 导出时 Python 直接输出到目标路径(Rust `export_stl` 命令),无中间字节传输
 
 ## 夹具设计
@@ -56,7 +63,9 @@
 ### 环境要求
 
 - **Node.js 20+**
+
 - **Rust 1.77+**(`rustup install stable`)
+
 - **Python 3.10+**(生成 CAD 模型的引擎)
 
 ```bash
@@ -92,17 +101,17 @@ offset = 8                                         # 角螺丝内缩
 
 ## 参数速查
 
-| 参数 | 默认 | 说明 |
-|---|---|---|
-| `pcbSizeX` / `pcbSizeY` | 50 | PCB 尺寸(拖入 Gerber 自动填充) |
-| `pcbThickness` | 1.6 | PCB 厚度,决定托盘槽深 |
-| `stencilSize` | 100 | 钢网边长(正方形) |
-| `jigSize` | 140 | 夹具边长,从钢网尺寸自动算,可手动覆盖 |
-| `screwSpacing` | 60 | 周长螺丝间距 |
-| `insertHeight` | 8 | PCB 托盘厚度 |
-| `pcbSupportRadius` / `pcbSupportOffset` | 5 / 58 | 托盘内部支撑柱半径 / 中心偏移 |
-| `baseHeight` / `topCoverHeight` | 8 / 4 | 底座 / 顶盖厚度 |
-| `postDiameter` / `postHeight` | 6 / 6 | M3 螺柱直径 / 凸出高度 |
+| 参数                                      | 默认     | 说明                     |
+| --------------------------------------- | ------ | ---------------------- |
+| `pcbSizeX` / `pcbSizeY`                 | 50     | PCB 尺寸(拖入 Gerber 自动填充) |
+| `pcbThickness`                          | 1.6    | PCB 厚度,决定托盘槽深          |
+| `stencilSize`                           | 100    | 钢网边长(正方形)              |
+| `jigSize`                               | 140    | 夹具边长,从钢网尺寸自动算,可手动覆盖    |
+| `screwSpacing`                          | 60     | 周长螺丝间距                 |
+| `insertHeight`                          | 8      | PCB 托盘厚度               |
+| `pcbSupportRadius` / `pcbSupportOffset` | 5 / 58 | 托盘内部支撑柱半径 / 中心偏移       |
+| `baseHeight` / `topCoverHeight`         | 8 / 4  | 底座 / 顶盖厚度              |
+| `postDiameter` / `postHeight`           | 6 / 6  | M3 螺柱直径 / 凸出高度         |
 
 ## 目录结构
 
@@ -146,18 +155,23 @@ cd src-tauri && cargo check    # Rust 类型检查
 ## 常见问题
 
 ### Q: 应用启动后显示"未检测到 Python"?
+
 A: 应用启动时探测 PATH 和标准安装位置。如果 Python 装在自定义位置,在「Python + build123d 环境」卡片手动指定 `python.exe`,路径持久化到 `%APPDATA%\cn.local.pcb-stencil-jig\settings.json`。注意需要已安装 `build123d`、`shapely`、`numpy`。
 
 ### Q: Gerber ZIP 解析失败?
+
 A: 检查 ZIP 里是否有 `.GKO` / `*Edge.Cuts*` / `.GM1` 文件。如果都没有,展开「其他候选」手动看下文件名,可能是 JLCPCB 的特殊命名。
 
 ### Q: 钢网和 PCB 对位偏了?
+
 A:
+
 1. 检查顶盖窗口尺寸是否与钢网匹配(窗口 = 钢网 - 1mm,每边压 0.5mm)
 2. 检查 PCB 是否完全推入托盘中央凹槽
 3. 螺丝对称交叉拧紧,不要一次拧死一颗
 
 ### Q: 想要更小的螺丝间距?
+
 A: 「周长间距」滑块调到 25-30mm,4 角 + 中间螺丝更多,压力更均匀。20mm 以下可能螺丝互打架。
 
 ## 许可证
@@ -166,6 +180,9 @@ MIT
 
 ## 致谢
 
-- 参考项目: [lamikr/pcb_stencil_jigboard](https://github.com/lamikr/pcb_stencil_jigboard) — 设计灵感来源
+- 参考项目: [lamikr/pcb\_stencil\_jigboard](https://github.com/lamikr/pcb_stencil_jigboard) — 设计灵感来源
+
 - [build123d](https://github.com/gumyr/build123d) — Python 参数化 CAD 内核
+
 - Tauri 团队 — 优秀的桌面应用框架
+

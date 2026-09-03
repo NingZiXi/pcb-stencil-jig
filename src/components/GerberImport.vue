@@ -131,8 +131,18 @@ function fmt(n: number): string {
 </script>
 
 <template>
-  <el-card header="① Gerber 导入" shadow="never">
+  <div class="gerber-import">
+    <input
+      ref="fileInput"
+      type="file"
+      accept=".zip,.gko,.gm1,.gbr"
+      style="display: none"
+      @change="onFileChange"
+    />
+
+    <!-- Dropzone -->
     <div
+      v-if="!hasResult"
       class="dropzone"
       :class="{ active: loading || dragOver }"
       @click="pickFile"
@@ -140,30 +150,30 @@ function fmt(n: number): string {
       @dragleave="onDragLeave"
       @drop="onDrop"
     >
-      <input
-        ref="fileInput"
-        type="file"
-        accept=".zip,.gko,.gm1,.gbr"
-        style="display: none"
-        @change="onFileChange"
-      />
-      <el-icon class="upload-icon" :size="32">
-        <i-ep-upload-filled v-if="false" />
-        <span style="font-size: 32px">📁</span>
-      </el-icon>
-      <p v-if="!loading && !hasResult">点击或拖入 Gerber ZIP / 板框文件</p>
-      <p v-else-if="loading">解析中...</p>
-      <p v-else>✓ 已识别</p>
+      <svg class="drop-icon" viewBox="0 0 24 24" width="28" height="28">
+        <path d="M12 3v12m0-12l-4 4m4-4l4 4M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"
+          fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <p v-if="!loading" class="drop-text">点击或拖入 Gerber ZIP</p>
+      <p v-else class="drop-text">解析中…</p>
+      <p class="drop-hint">支持 .GKO / Edge.Cuts / .GM1</p>
     </div>
 
-    <el-alert v-if="error" type="error" :closable="false" style="margin-top: 12px">
+    <!-- Error -->
+    <el-alert v-if="error" type="error" :closable="false" class="error-alert">
       {{ error }}
     </el-alert>
 
+    <!-- Result -->
     <div v-if="result" class="result">
-      <!-- 板框 SVG 预览
-           Gerber / build123d 用 Y 向上,但 SVG 是 Y 向下
-           所以用 transform scale(1, -1) 翻转 Y 轴,保持视觉一致 -->
+      <div class="result-header">
+        <svg viewBox="0 0 16 16" width="16" height="16" class="check-icon">
+          <path d="M3 8.5l3.5 3.5L13 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="result-title">已识别</span>
+      </div>
+
+      <!-- SVG Preview -->
       <svg
         v-if="result.outlinePoints.length > 0"
         class="outline-preview"
@@ -173,145 +183,244 @@ function fmt(n: number): string {
         <g transform="scale(1, -1)">
           <polygon
             :points="result.outlinePoints.map(p => `${p[0]},${p[1]}`).join(' ')"
-            fill="#67c23a"
-            fill-opacity="0.3"
-            stroke="#67c23a"
+            fill="rgba(75,63,227,0.10)"
+            stroke="#4B3FE3"
             stroke-width="0.3"
           />
         </g>
-        <!-- 边框辅助线 -->
         <line
           :x1="-result.width/2" :y1="0"
           :x2="result.width/2" :y2="0"
-          stroke="#909399" stroke-width="0.2" stroke-dasharray="2,2"
+          stroke="rgba(115,115,115,0.36)" stroke-width="0.2" stroke-dasharray="2,2"
         />
         <text
           :x="result.width/2 + 2" y="3"
           font-size="3"
-          fill="#909399"
+          fill="rgba(115,115,115,0.5)"
+          font-family="JetBrains Mono, monospace"
         >
           {{ fmt(result.width) }}×{{ fmt(result.height) }} mm
         </text>
       </svg>
 
-      <el-descriptions :column="1" size="small" border>
-        <el-descriptions-item label="板框文件">
-          {{ result.filename }}
-        </el-descriptions-item>
-        <el-descriptions-item label="PCB 长">
-          {{ fmt(result.width) }} mm
-        </el-descriptions-item>
-        <el-descriptions-item label="PCB 宽">
-          {{ fmt(result.height) }} mm
-        </el-descriptions-item>
-        <el-descriptions-item label="单位">
-          {{ result.bbox.units || "未知" }}
-        </el-descriptions-item>
-        <el-descriptions-item label="板框顶点数">
-          {{ result.outlinePoints.length }}
-          <span v-if="result.parse.arcsLinearized > 0" style="color:#909399">
-            (含 {{ result.parse.arcsLinearized }} 条弧线)
+      <!-- Info -->
+      <div class="info-grid">
+        <div class="info-row">
+          <span class="info-label">板框文件</span>
+          <span class="info-value" :title="result.filename">{{ result.filename }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">PCB 尺寸</span>
+          <span class="info-value">{{ fmt(result.width) }} × {{ fmt(result.height) }} mm</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">单位</span>
+          <span class="info-value">{{ result.bbox.units || "未知" }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">顶点数</span>
+          <span class="info-value">
+            {{ result.outlinePoints.length }}
+            <span v-if="result.parse.arcsLinearized > 0" class="info-sub">
+              (含 {{ result.parse.arcsLinearized }} 弧线)
+            </span>
           </span>
-        </el-descriptions-item>
-      </el-descriptions>
-
-      <div v-if="candidates.length > 1" class="alt-candidates">
-        <p class="hint">其他候选:</p>
-        <ul>
-          <li v-for="c in candidates.slice(1, 4)" :key="c.filename">
-            <code>{{ c.filename }}</code>
-            <span class="reason">({{ c.reason }})</span>
-          </li>
-        </ul>
+        </div>
       </div>
 
-      <el-button size="small" plain @click="clear" style="margin-top: 8px">
-        重新导入
-      </el-button>
+      <!-- Candidates -->
+      <div v-if="candidates.length > 1" class="alt-candidates">
+        <span class="candidates-label">其他候选</span>
+        <div class="candidates-list">
+          <span v-for="c in candidates.slice(1, 4)" :key="c.filename" class="candidate-item">
+            <code>{{ c.filename }}</code>
+          </span>
+        </div>
+      </div>
+
+      <button class="reimport-btn" @click="clear">重新导入</button>
     </div>
-  </el-card>
+  </div>
 </template>
 
 <style scoped>
+.gerber-import {
+  padding: 16px;
+}
+
+/* Dropzone */
 .dropzone {
-  border: 2px dashed #dcdfe6;
-  border-radius: 8px;
-  padding: 36px 12px;
+  border: 1.5px dashed var(--border-neutral-l2);
+  border-radius: var(--radius-12);
+  padding: 32px 16px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropzone:hover {
+  border-color: var(--bg-brand);
+  background: var(--bg-brand-popup);
+}
+
+.dropzone.active {
+  border-color: var(--bg-brand);
+  background: var(--bg-brand-popup);
+}
+
+.drop-icon {
+  color: var(--text-tertiary);
+  transition: color 0.15s ease;
+}
+
+.dropzone:hover .drop-icon {
+  color: var(--bg-brand);
+}
+
+.drop-text {
+  margin: 0;
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+
+.drop-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-family-mono);
+}
+
+.error-alert {
+  margin-top: 12px;
+}
+
+/* Result */
+.result {
+  margin-top: 0;
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.check-icon {
+  color: var(--status-success-default);
+}
+
+.result-title {
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
 }
 
 .outline-preview {
   width: 100%;
-  height: 140px;
-  background: #fafbfc;
-  border-radius: 4px;
+  height: 120px;
+  background: var(--brand-grey-50);
+  border-radius: var(--radius-8);
   margin-bottom: 12px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--border-neutral-l1);
 }
 
-.dropzone:hover {
-  border-color: #409eff;
-  background: #ecf5ff;
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-8);
+  overflow: hidden;
 }
 
-.dropzone.active {
-  border-color: #409eff;
-  background: #ecf5ff;
-  transform: scale(1.02);
-  transition: transform 0.15s;
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-neutral-l1);
 }
 
-.upload-icon {
-  color: #909399;
-  margin-bottom: 12px;
+.info-row:last-child {
+  border-bottom: none;
 }
 
-p {
-  margin: 6px 0;
-  color: #606266;
-  font-size: 14px;
+.info-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: var(--font-weight-medium);
 }
 
-.result {
-  margin-top: 16px;
+.info-value {
+  font-size: 12px;
+  color: var(--text-default);
+  font-family: var(--font-family-mono);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.info-sub {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  margin-left: 4px;
 }
 
 .alt-candidates {
   margin-top: 8px;
-  padding: 8px;
-  background: #f5f7fa;
-  border-radius: 4px;
+  padding: 8px 12px;
+  background: var(--bg-overlay-l1);
+  border-radius: var(--radius-6);
+}
+
+.candidates-label {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.candidates-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.candidate-item code {
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  background: var(--bg-base-default);
+  padding: 2px 6px;
+  border-radius: var(--radius-4);
+  border: 1px solid var(--border-neutral-l1);
+  color: var(--text-secondary);
+}
+
+.reimport-btn {
+  margin-top: 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-6);
+  background: var(--bg-base-default);
+  color: var(--text-secondary);
   font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
 }
 
-.hint {
-  color: #909399;
-  margin: 0 0 4px 0;
-}
-
-.alt-candidates ul {
-  margin: 0;
-  padding-left: 16px;
-}
-
-.alt-candidates li {
-  color: #606266;
-  margin: 2px 0;
-}
-
-.reason {
-  color: #909399;
-  font-size: 11px;
-  margin-left: 4px;
-}
-
-code {
-  font-family: "Cascadia Code", "Consolas", monospace;
-  font-size: 11px;
-  background: #fff;
-  padding: 1px 4px;
-  border-radius: 2px;
+.reimport-btn:hover {
+  background: var(--bg-overlay-l1);
+  color: var(--text-default);
 }
 </style>

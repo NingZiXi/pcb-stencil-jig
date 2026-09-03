@@ -7,7 +7,6 @@ import { useConfigStore } from "../stores/config";
 const store = useConfigStore();
 const manualPath = ref("");
 const saving = ref(false);
-const expanded = ref(false);  // 默认折叠
 
 async function pickAndSave() {
   try {
@@ -58,117 +57,119 @@ onMounted(() => {
 </script>
 
 <template>
-  <el-card shadow="never">
-    <template #header>
-      <div class="header-row" @click="expanded = !expanded" style="cursor: pointer">
-        <span>
-          Python + build123d 环境
-          <el-tag v-if="store.pythonDetected" type="success" size="small" style="margin-left: 8px">
-            ✓ 已配置
-          </el-tag>
-          <el-tag v-else type="warning" size="small" style="margin-left: 8px">
-            ⚠ 未检测
-          </el-tag>
-        </span>
-        <el-icon>
-          <component :is="expanded ? 'ArrowDown' : 'ArrowRight'" />
-        </el-icon>
+  <div class="python-setup">
+    <div v-if="store.pythonDetected" class="ok">
+      <div class="path-box">
+        <code>{{ store.pythonPath }}</code>
       </div>
-    </template>
-
-    <div v-if="expanded">
-      <div v-if="store.pythonDetected" class="ok">
-        <p class="path">
-          <code>{{ store.pythonPath }}</code>
-        </p>
-        <div class="actions">
-          <el-button plain @click="store.detectPython">重新检测</el-button>
-          <el-button plain @click="clearPath">清除配置</el-button>
-        </div>
-      </div>
-
-      <div v-else class="setup">
-        <el-alert
-          :title="store.pythonError || '未检测到 Python'"
-          type="warning"
-          :closable="false"
-          style="margin-bottom: 12px"
-        />
-        <p class="hint">
-          需要 <strong>Python 3.10+</strong> + <code>build123d</code> + <code>shapely</code>。
-          安装命令:
-          <code>pip install build123d shapely numpy</code>
-        </p>
-
-        <div class="manual">
-          <el-input
-            v-model="manualPath"
-            placeholder="C:\Python311\python.exe"
-            clearable
-            size="large"
-            @keyup.enter="savePathDirect"
-          />
-          <el-button type="primary" :loading="saving" size="large" @click="pickAndSave">
-            选择文件...
-          </el-button>
-        </div>
-
-        <div class="actions" style="margin-top: 8px">
-          <el-button
-            plain
-            :disabled="!manualPath.trim()"
-            :loading="saving"
-            @click="savePathDirect"
-          >
-            保存路径
-          </el-button>
-          <el-button plain @click="store.detectPython">再次自动检测</el-button>
-        </div>
+      <div class="actions">
+        <el-button size="small" plain @click="store.detectPython">重新检测</el-button>
+        <el-button size="small" plain @click="clearPath">清除配置</el-button>
       </div>
     </div>
-  </el-card>
+
+    <div v-else class="setup">
+      <el-alert
+        :title="store.pythonError || '未检测到 Python'"
+        type="warning"
+        :closable="false"
+        class="alert"
+      />
+      <p class="hint">
+        需要 <strong>Python 3.10+</strong> + <code>build123d</code> + <code>shapely</code>。
+        安装命令:
+        <code>pip install build123d shapely numpy</code>
+      </p>
+
+      <div class="manual">
+        <el-input
+          v-model="manualPath"
+          placeholder="C:\Python311\python.exe"
+          clearable
+          size="small"
+          @keyup.enter="savePathDirect"
+        />
+        <el-button size="small" type="primary" :loading="saving" @click="pickAndSave">
+          选择文件...
+        </el-button>
+      </div>
+
+      <div class="actions">
+        <el-button
+          size="small"
+          plain
+          :disabled="!manualPath.trim()"
+          :loading="saving"
+          @click="savePathDirect"
+        >
+          保存路径
+        </el-button>
+        <el-button size="small" plain @click="store.detectPython">再次自动检测</el-button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.python-setup {
+  font-size: var(--body-base-font-size);
+  color: var(--text-default);
 }
 
 .ok,
 .setup {
-  font-size: 13px;
+  font-size: var(--body-md-font-size);
 }
 
-.path {
-  background: #f5f7fa;
-  padding: 8px;
-  border-radius: 4px;
+.path-box {
+  background: var(--bg-overlay-l1);
+  border-radius: var(--radius-6);
+  padding: 10px 12px;
+  margin: 0 0 var(--spacer-8) 0;
   word-break: break-all;
-  margin: 0 0 8px 0;
 }
 
-code {
-  font-family: "Cascadia Code", "Consolas", monospace;
-  font-size: 11px;
-  background: #fafbfc;
-  padding: 1px 6px;
-  border-radius: 2px;
-  border: 1px solid #e4e7ed;
+.path-box code {
+  font-family: var(--font-family-mono);
+  font-size: var(--body-sm-font-size);
+  color: var(--text-secondary);
+  background: transparent;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.alert {
+  margin-bottom: var(--spacer-12);
 }
 
 .hint {
-  margin: 8px 0 12px 0;
-  font-size: 12px;
-  color: #606266;
-  line-height: 1.6;
+  margin: 0 0 var(--spacer-12) 0;
+  font-size: var(--body-md-font-size);
+  color: var(--text-tertiary);
+  line-height: var(--body-md-line-height);
+}
+
+.hint strong {
+  font-weight: var(--font-weight-strong);
+  color: var(--text-secondary);
+}
+
+code {
+  font-family: var(--font-family-mono);
+  font-size: var(--body-sm-font-size);
+  background: var(--bg-overlay-l1);
+  padding: 1px 6px;
+  border-radius: var(--radius-4);
+  border: 1px solid var(--border-neutral-l1);
+  color: var(--text-secondary);
 }
 
 .manual {
   display: flex;
-  gap: 8px;
+  gap: var(--spacer-8);
   align-items: stretch;
+  margin-bottom: var(--spacer-8);
 }
 
 .manual :deep(.el-input) {
@@ -177,7 +178,7 @@ code {
 
 .actions {
   display: flex;
-  gap: 8px;
+  gap: var(--spacer-8);
   flex-wrap: wrap;
 }
 </style>

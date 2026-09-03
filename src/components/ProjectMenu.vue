@@ -102,38 +102,53 @@ async function loadProject() {
 
 <template>
   <div class="project-menu">
-    <el-button-group>
+    <el-button-group class="project-menu__actions">
       <el-button :loading="working" size="small" @click="loadProject">
         加载项目
       </el-button>
-      <el-button :loading="working" size="small" type="primary" @click="saveProject">
+      <el-button
+        :loading="working"
+        size="small"
+        type="primary"
+        @click="saveProject"
+      >
         保存项目
       </el-button>
     </el-button-group>
-    <p v-if="store.config.gerberFilename" class="filename">
+    <span
+      v-if="store.config.gerberFilename"
+      class="project-menu__filename"
+    >
       Gerber: <code>{{ store.config.gerberFilename }}</code>
-    </p>
+    </span>
   </div>
 </template>
 
 <style scoped>
 .project-menu {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacer-12);
+  font-family: var(--font-family-default);
 }
 
-.filename {
-  font-size: 11px;
-  color: #909399;
-  margin: 0;
-  word-break: break-all;
+.project-menu__filename {
+  font-size: var(--body-sm-font-size);
+  color: var(--text-tertiary);
+  line-height: var(--body-sm-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
 }
 
-code {
-  font-family: "Cascadia Code", "Consolas", monospace;
-  background: #f5f7fa;
-  padding: 1px 4px;
-  border-radius: 2px;
+.project-menu__filename code {
+  font-family: var(--font-family-mono);
+  font-size: var(--body-sm-font-size);
+  background: var(--bg-overlay-l1);
+  padding: var(--spacer-1, 1px) var(--spacer-6);
+  border-radius: var(--radius-4);
+  color: var(--text-secondary);
 }
 </style>

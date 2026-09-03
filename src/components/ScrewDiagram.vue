@@ -55,13 +55,13 @@ const screwCount = computed(() => screws.value.length);
 </script>
 
 <template>
-  <el-card header="③ 螺丝布局" shadow="never">
+  <div class="screw-diagram">
     <div class="diagram-wrapper">
       <svg
         :width="diagramSize.width"
         :height="diagramSize.height"
         :viewBox="`0 0 ${diagramSize.width} ${diagramSize.height}`"
-        style="background: #fafbfc; border-radius: 6px; padding: 8px"
+        style="background: var(--brand-grey-50); border-radius: var(--radius-6); padding: 8px"
       >
         <!-- 夹具外框 -->
         <rect
@@ -70,7 +70,7 @@ const screwCount = computed(() => screws.value.length);
           :width="rect.w"
           :height="rect.h"
           fill="none"
-          stroke="#303133"
+          stroke="var(--border-neutral-l3)"
           stroke-width="2"
         />
 
@@ -80,9 +80,8 @@ const screwCount = computed(() => screws.value.length);
           :y="stencilRect.y"
           :width="stencilRect.w"
           :height="stencilRect.h"
-          fill="#67c23a"
-          fill-opacity="0.2"
-          stroke="#67c23a"
+          fill="rgba(75,63,227,0.12)"
+          stroke="var(--bg-brand)"
           stroke-width="1.5"
           stroke-dasharray="4,3"
         />
@@ -95,8 +94,8 @@ const screwCount = computed(() => screws.value.length);
             :cx="s.cx"
             :cy="s.cy"
             :r="s.r"
-            fill="#409eff"
-            stroke="#fff"
+            fill="var(--bg-brand)"
+            stroke="var(--bg-base-default)"
             stroke-width="1"
           />
         </g>
@@ -108,18 +107,19 @@ const screwCount = computed(() => screws.value.length);
       <span>夹具 {{ store.config.jigSize }}×{{ store.config.jigSize }} mm</span>
       <span>钢网 {{ store.config.stencilSize }}×{{ store.config.stencilSize }} mm</span>
     </p>
-  </el-card>
+  </div>
 </template>
 
 <style scoped>
-:deep(.el-card__body) {
-  padding: 22px 24px;
+.screw-diagram {
+  display: flex;
+  flex-direction: column;
 }
 
 .diagram-wrapper {
   display: flex;
   justify-content: center;
-  padding: 8px;
+  padding: var(--spacer-12);
 }
 
 svg {
@@ -130,18 +130,25 @@ svg {
 .meta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 14px;
-  font-size: 13px;
-  color: #606266;
-  padding: 10px 12px;
-  background: #f5f7fa;
-  border-radius: 6px;
+  gap: var(--spacer-6);
+  margin-top: var(--spacer-12);
+  padding: var(--spacer-10) var(--spacer-12);
+  background: var(--bg-overlay-l1);
+  border-radius: var(--radius-8);
+  color: var(--text-secondary);
+  font-size: var(--body-md-font-size);
+  line-height: var(--body-md-line-height);
+}
+
+.meta span {
+  font-weight: var(--font-weight-medium);
 }
 
 .meta strong {
-  color: #409eff;
-  font-size: 16px;
-  margin-right: 6px;
+  color: var(--text-brand);
+  font-size: var(--body-lg-font-size);
+  font-family: var(--font-family-metric);
+  font-weight: var(--font-weight-strong);
+  margin-right: var(--spacer-6);
 }
 </style>
