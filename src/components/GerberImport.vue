@@ -2,7 +2,10 @@
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { useI18n } from "vue-i18n";
 import { useGerberOutline } from "../composables/useGerberOutline";
+
+const { t } = useI18n();
 
 const emit = defineEmits<{
   (e: "sizeDetected", payload: {
@@ -154,9 +157,9 @@ function fmt(n: number): string {
         <path d="M12 3v12m0-12l-4 4m4-4l4 4M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"
           fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
-      <p v-if="!loading" class="drop-text">点击或拖入 Gerber ZIP</p>
-      <p v-else class="drop-text">解析中…</p>
-      <p class="drop-hint">支持 .GKO / Edge.Cuts / .GM1</p>
+      <p v-if="!loading" class="drop-text">{{ t('gerber.drop') }}</p>
+      <p v-else class="drop-text">{{ t('gerber.parsing') }}</p>
+      <p class="drop-hint">{{ t('gerber.dropHint') }}</p>
     </div>
 
     <!-- Error -->
@@ -170,7 +173,7 @@ function fmt(n: number): string {
         <svg viewBox="0 0 16 16" width="16" height="16" class="check-icon">
           <path d="M3 8.5l3.5 3.5L13 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <span class="result-title">已识别</span>
+        <span class="result-title">{{ t('gerber.recognized') }}</span>
       </div>
 
       <!-- SVG Preview -->
@@ -206,23 +209,23 @@ function fmt(n: number): string {
       <!-- Info -->
       <div class="info-grid">
         <div class="info-row">
-          <span class="info-label">板框文件</span>
+          <span class="info-label">{{ t('gerber.outlineFile') }}</span>
           <span class="info-value" :title="result.filename">{{ result.filename }}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">PCB 尺寸</span>
+          <span class="info-label">{{ t('gerber.pcbSize') }}</span>
           <span class="info-value">{{ fmt(result.width) }} × {{ fmt(result.height) }} mm</span>
         </div>
         <div class="info-row">
-          <span class="info-label">单位</span>
-          <span class="info-value">{{ result.bbox.units || "未知" }}</span>
+          <span class="info-label">{{ t('gerber.units') }}</span>
+          <span class="info-value">{{ result.bbox.units || t('gerber.unitsUnknown') }}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">顶点数</span>
+          <span class="info-label">{{ t('gerber.vertices') }}</span>
           <span class="info-value">
             {{ result.outlinePoints.length }}
             <span v-if="result.parse.arcsLinearized > 0" class="info-sub">
-              (含 {{ result.parse.arcsLinearized }} 弧线)
+              ({{ t('gerber.arcs', { n: result.parse.arcsLinearized }) }})
             </span>
           </span>
         </div>
@@ -230,7 +233,7 @@ function fmt(n: number): string {
 
       <!-- Candidates -->
       <div v-if="candidates.length > 1" class="alt-candidates">
-        <span class="candidates-label">其他候选</span>
+        <span class="candidates-label">{{ t('gerber.candidates') }}</span>
         <div class="candidates-list">
           <span v-for="c in candidates.slice(1, 4)" :key="c.filename" class="candidate-item">
             <code>{{ c.filename }}</code>
@@ -238,7 +241,7 @@ function fmt(n: number): string {
         </div>
       </div>
 
-      <button class="reimport-btn" @click="clear">重新导入</button>
+      <button class="reimport-btn" @click="clear">{{ t('gerber.reimport') }}</button>
     </div>
   </div>
 </template>

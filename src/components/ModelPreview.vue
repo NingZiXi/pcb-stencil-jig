@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, shallowRef } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ElMessage } from "element-plus";
+import { useI18n } from "vue-i18n";
 import { useConfigStore } from "../stores/config";
+import { useUiStore } from "../stores/ui";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -11,6 +13,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 type PartName = "base" | "insert" | "cover";
 
 const store = useConfigStore();
+const ui = useUiStore();
+const { t } = useI18n();
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 const activePart = ref<PartName>("insert");
 const loading = ref(false);
@@ -79,7 +83,7 @@ function initThreeScene() {
   const h = container.clientHeight;
 
   const s = new THREE.Scene();
-  s.background = new THREE.Color(0xF5F5F5);
+  s.background = new THREE.Color(ui.theme === "dark" ? 0x232325 : 0xF5F5F5);
 
   // 相机:斜俯视(参考 Dream_maker 风格,约 30° 俯视,既看布局又看高度)
   const cam = new THREE.PerspectiveCamera(45, w / h, 0.1, 5000);
@@ -103,8 +107,12 @@ function initThreeScene() {
   dirLight2.position.set(-100, 50, -100);
   s.add(dirLight2);
 
-  // 网格地板
-  const gridHelper = new THREE.GridHelper(400, 20, 0x737373, 0xD4D4D4);
+  // 网格地板(颜色随主题)
+  const gridHelper = new THREE.GridHelper(
+    400, 20,
+    ui.theme === "dark" ? 0x5C5C5F : 0x737373,
+    ui.theme === "dark" ? 0x3A3A3D : 0xD4D4D4,
+  );
   s.add(gridHelper);
 
   // 坐标轴
@@ -153,7 +161,7 @@ let renderSeq = 0;
 async function renderCurrent() {
   if (!scene.value || !store.pythonDetected) {
     if (!store.pythonDetected) {
-      errorMsg.value = "Python 环境未检测到,无法渲染";
+      errorMsg.value = t("preview.noPythonRender");
     }
     return;
   }
@@ -190,7 +198,7 @@ async function renderCurrent() {
     applyStlToMesh(bytes);
   } catch (e) {
     if (seq === renderSeq) {
-      errorMsg.value = e instanceof Error ? e.message : String(e);
+      errorMsg.value = t("preview.renderFailed", { msg: e instanceof Error ? e.message : String(e) });
     }
   } finally {
     if (seq === renderSeq) {
@@ -260,6 +268,25 @@ watch(
       // 后台预热所有 3 个部件,首次切 tab 不再卡
       preloadAllParts();
     }
+  }
+);
+
+// 主题切换 → 更新场景背景与网格颜色(模型不动)
+watch(
+  () => ui.theme,
+  (theme) => {
+    if (scene.value) {
+      scene.value.background = new THREE.Color(theme === "dark" ? 0x232325 : 0xF5F5F5);
+    }
+    // 替换旧网格
+    const old = scene.value?.children.find((c) => c instanceof THREE.GridHelper);
+    if (old) scene.value?.remove(old);
+    const grid = new THREE.GridHelper(
+      400, 20,
+      theme === "dark" ? 0x5C5C5F : 0x737373,
+      theme === "dark" ? 0x3A3A3D : 0xD4D4D4,
+    );
+    scene.value?.add(grid);
   }
 );
 
@@ -335,12 +362,11 @@ onBeforeUnmount(() => {
 // 导出所有 3 个 STL 文件(选目录 → Rust export_stl 直接写盘)
 async function exportAllStl() {
   if (!store.pythonDetected) {
-    errorMsg.value = "Python 环境未检测到,无法导出";
+    errorMsg.value = t("preview.noPythonExport");
     return;
   }
 
   const targetDir = await open({
-    title: "选择导出目录",
     directory: true,
     multiple: false,
   });
@@ -364,19 +390,19 @@ async function exportAllStl() {
       await invoke("export_stl", { params, part: p.rust, outputPath: fullPath });
     }
 
-    ElMessage.success(`已导出 3 个 STL 到 ${dir}`);
+    ElMessage.success(t("preview.exported", { dir }));
   } catch (e) {
-    errorMsg.value = `导出失败: ${e instanceof Error ? e.message : String(e)}`;
+    errorMsg.value = t("preview.exportFailed", { msg: e instanceof Error ? e.message : String(e) });
   } finally {
     loading.value = false;
   }
 }
 
-const partTabs: { name: PartName; label: string; color: string }[] = [
-  { name: "insert", label: "PCB 托盘", color: "#5A9B7F" },
-  { name: "base", label: "B 面 · 底座", color: "#4C6F94" },
-  { name: "cover", label: "A 面 · 顶盖", color: "#D9913D" },
-];
+const partTabs = computed(() => [
+  { name: "insert" as PartName, label: t("preview.insert"), color: "#5A9B7F" },
+  { name: "base" as PartName, label: t("preview.base"), color: "#4C6F94" },
+  { name: "cover" as PartName, label: t("preview.cover"), color: "#D9913D" },
+]);
 </script>
 
 <template>
@@ -396,21 +422,21 @@ const partTabs: { name: PartName; label: string; color: string }[] = [
       </div>
       <div class="header-actions">
         <span v-if="preloading.size > 0" class="preload-badge">
-          预加载 {{ 3 - preloading.size }}/3
+          {{ t('preview.preloading', { n: 3 - preloading.size }) }}
         </span>
         <button class="action-btn" @click="refreshAll" :disabled="refreshing">
           <svg viewBox="0 0 16 16" width="14" height="14" :class="{ spinning: refreshing }">
             <path d="M13 8a5 5 0 1 1-1.5-3.5M13 3v3h-3"
               fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-          刷新
+          {{ t('preview.refresh') }}
         </button>
         <button class="action-btn primary" @click="exportAllStl">
           <svg viewBox="0 0 16 16" width="14" height="14">
             <path d="M3 3v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6l-3-3H4a1 1 0 0 0-1 1zM6 3v3h4M8 8v3M6.5 9.5L8 11l1.5-1.5"
               fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-          导出 STL
+          {{ t('preview.export') }}
         </button>
       </div>
     </div>
@@ -421,19 +447,19 @@ const partTabs: { name: PartName; label: string; color: string }[] = [
         <svg class="spin-icon" viewBox="0 0 16 16" width="20" height="20">
           <path d="M8 2a6 6 0 1 0 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
-        <span>渲染中…</span>
+        <span>{{ t('preview.rendering') }}</span>
       </div>
       <div v-if="!store.pythonDetected && !loading" class="overlay warning">
         <svg viewBox="0 0 16 16" width="16" height="16">
           <path d="M8 2L1 14h14L8 2zM8 6v4M8 12v.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <span>Python 环境未检测到,无法预览</span>
+        <span>{{ t('preview.noPythonPreview') }}</span>
       </div>
       <div v-if="errorMsg && !loading" class="overlay error">
         <span>{{ errorMsg }}</span>
       </div>
       <div class="viewport-hint">
-        左键旋转 · 右键平移 · 滚轮缩放
+        {{ t('preview.hint') }}
       </div>
     </div>
   </div>

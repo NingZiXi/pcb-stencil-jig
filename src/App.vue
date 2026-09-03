@@ -2,6 +2,7 @@
 import { onMounted, onBeforeUnmount, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
+import { useI18n } from "vue-i18n";
 import { useConfigStore } from "./stores/config";
 import ConfigForm from "./components/ConfigForm.vue";
 import ModelPreview from "./components/ModelPreview.vue";
@@ -9,8 +10,10 @@ import GerberImport from "./components/GerberImport.vue";
 import ScrewDiagram from "./components/ScrewDiagram.vue";
 import PythonSetup from "./components/PythonSetup.vue";
 import ProjectMenu from "./components/ProjectMenu.vue";
+import SettingsMenu from "./components/SettingsMenu.vue";
 
 const configStore = useConfigStore();
+const { t } = useI18n();
 
 // ===== 自定义标题栏(decorations:false,与页眉融合) =====
 const appWindow = getCurrentWindow();
@@ -170,14 +173,6 @@ function getSlotHeight(id: string): number {
   return collapsed.value[id] ? CARD_COLLAPSED : cardHeights.value[id];
 }
 
-// ===== 卡片标题映射 =====
-const cardMeta: Record<string, { title: string; step?: string; icon: string }> = {
-  python: { title: "Python + build123d", icon: "py" },
-  gerber: { title: "Gerber 导入", step: "1", icon: "gerber" },
-  config: { title: "参数调整", step: "2", icon: "config" },
-  screw: { title: "螺丝布局", step: "3", icon: "screw" },
-};
-
 function onSizeDetected(payload: {
   width: number;
   height: number;
@@ -222,12 +217,13 @@ onBeforeUnmount(() => {
           <circle cx="49.5" cy="49.5" r="3.5" fill="var(--icon-default)" />
         </svg>
         <div class="header-titles" data-tauri-drag-region>
-          <h1 data-tauri-drag-region>PCB 钢网夹具生成器</h1>
-          <span class="subtitle" data-tauri-drag-region>从 Gerber 一键生成可 3D 打印的锡膏刷钢网定位夹具</span>
+          <h1 data-tauri-drag-region>{{ t('app.title') }}</h1>
+          <span class="subtitle" data-tauri-drag-region>{{ t('app.subtitle') }}</span>
         </div>
       </div>
       <div class="spacer" data-tauri-drag-region />
       <ProjectMenu />
+      <SettingsMenu />
 
       <!-- 窗口控制(与页眉融合,替代系统标题栏) -->
       <div class="window-controls">
@@ -272,14 +268,14 @@ onBeforeUnmount(() => {
           <div class="slot-header" @click="toggleCollapse('python')">
             <div class="slot-label">
               <span class="slot-step-dot" data-icon="py">Py</span>
-              <span class="slot-title">{{ cardMeta.python.title }}</span>
+              <span class="slot-title">{{ t('cards.python') }}</span>
             </div>
             <div class="slot-meta">
               <span
                 class="status-badge"
                 :class="configStore.pythonDetected ? 'is-ok' : 'is-warn'"
               >
-                {{ configStore.pythonDetected ? '已配置' : '未检测' }}
+                {{ configStore.pythonDetected ? t('cards.configured') : t('cards.notDetected') }}
               </span>
               <svg class="chevron" :class="{ 'is-collapsed': collapsed.python }" viewBox="0 0 16 16" width="16" height="16">
                 <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -301,7 +297,7 @@ onBeforeUnmount(() => {
           <div class="slot-header" @click="toggleCollapse('gerber')">
             <div class="slot-label">
               <span class="slot-step-dot" data-step="1">1</span>
-              <span class="slot-title">{{ cardMeta.gerber.title }}</span>
+              <span class="slot-title">{{ t('cards.gerber') }}</span>
             </div>
             <svg class="chevron" :class="{ 'is-collapsed': collapsed.gerber }" viewBox="0 0 16 16" width="16" height="16">
               <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -322,7 +318,7 @@ onBeforeUnmount(() => {
           <div class="slot-header" @click="toggleCollapse('config')">
             <div class="slot-label">
               <span class="slot-step-dot" data-step="2">2</span>
-              <span class="slot-title">{{ cardMeta.config.title }}</span>
+              <span class="slot-title">{{ t('cards.config') }}</span>
             </div>
             <svg class="chevron" :class="{ 'is-collapsed': collapsed.config }" viewBox="0 0 16 16" width="16" height="16">
               <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -343,7 +339,7 @@ onBeforeUnmount(() => {
           <div class="slot-header" @click="toggleCollapse('screw')">
             <div class="slot-label">
               <span class="slot-step-dot" data-step="3">3</span>
-              <span class="slot-title">{{ cardMeta.screw.title }}</span>
+              <span class="slot-title">{{ t('cards.screw') }}</span>
             </div>
             <svg class="chevron" :class="{ 'is-collapsed': collapsed.screw }" viewBox="0 0 16 16" width="16" height="16">
               <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />

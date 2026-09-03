@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useConfigStore } from "../stores/config";
 
+const { t } = useI18n();
 const store = useConfigStore();
 
 const padding = 16; // SVG 内边距(加大)
@@ -103,9 +105,9 @@ const screwCount = computed(() => screws.value.length);
     </div>
 
     <p class="meta">
-      <span><strong>{{ screwCount }}</strong> 颗 M3 螺丝</span>
-      <span>夹具 {{ store.config.jigSize }}×{{ store.config.jigSize }} mm</span>
-      <span>钢网 {{ store.config.stencilSize }}×{{ store.config.stencilSize }} mm</span>
+      <span>{{ t('screwDiagram.count', { n: screwCount }) }}</span>
+      <span>{{ t('screwDiagram.jigSize', { x: store.config.jigSize, y: store.config.jigSize }) }}</span>
+      <span>{{ t('screwDiagram.stencilSize', { x: store.config.stencilSize, y: store.config.stencilSize }) }}</span>
     </p>
   </div>
 </template>

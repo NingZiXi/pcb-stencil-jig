@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useConfigStore } from "../stores/config";
 
 const store = useConfigStore();
+const { t } = useI18n();
 const c = computed(() => store.config);
 
 // 派生:推导钢网默认 = PCB + 10mm (用户可调)
@@ -18,10 +20,10 @@ function resetAll() {
 <template>
   <div class="config-form">
     <!-- PCB -->
-    <div class="section-label">PCB</div>
+    <div class="section-label">{{ t('config.pcb') }}</div>
     <div class="field-row">
       <div class="field">
-        <label class="field-label">长 (mm)</label>
+        <label class="field-label">{{ t('config.length') }}</label>
         <el-input-number
           v-model="c.pcbSizeX"
           :min="5"
@@ -33,7 +35,7 @@ function resetAll() {
         />
       </div>
       <div class="field">
-        <label class="field-label">宽 (mm)</label>
+        <label class="field-label">{{ t('config.width') }}</label>
         <el-input-number
           v-model="c.pcbSizeY"
           :min="5"
@@ -46,7 +48,7 @@ function resetAll() {
       </div>
     </div>
     <div class="field">
-      <label class="field-label">厚度 (mm)</label>
+      <label class="field-label">{{ t('config.thickness') }}</label>
       <el-input-number
         v-model="c.pcbThickness"
         :min="0.4"
@@ -59,9 +61,9 @@ function resetAll() {
     </div>
 
     <!-- 钢网 -->
-    <div class="section-label">钢网（正方形）</div>
+    <div class="section-label">{{ t('config.stencil') }}</div>
     <div class="field">
-      <label class="field-label">钢网边长 (mm)</label>
+      <label class="field-label">{{ t('config.stencilSide') }}</label>
       <el-input-number
         v-model="c.stencilSize"
         :min="5"
@@ -77,13 +79,13 @@ function resetAll() {
         <path d="M3 8a5 5 0 0 1 8.5-3.5L13 6M13 3v3h-3M13 8a5 5 0 0 1-8.5 3.5L3 10M3 13v-3h3"
           fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
-      钢网 = max(长, 宽) + 10mm
+      {{ t('config.stencilFromPcb') }}
     </button>
 
     <!-- 螺丝 -->
-    <div class="section-label">螺丝</div>
+    <div class="section-label">{{ t('config.screws') }}</div>
     <div class="field">
-      <label class="field-label">周长间距 (mm)</label>
+      <label class="field-label">{{ t('config.spacing') }}</label>
       <el-slider
         v-model="c.screwSpacing"
         :min="20"
@@ -95,19 +97,16 @@ function resetAll() {
     </div>
 
     <!-- 夹具 -->
-    <div class="section-label">夹具（按 20mm 步进）</div>
+    <div class="section-label">{{ t('config.jig') }}</div>
     <div class="auto-hint">
       <svg viewBox="0 0 16 16" width="14" height="14" class="hint-icon">
         <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.2" />
         <path d="M8 7v4M8 5.5v.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
       </svg>
-      <span>
-        自动计算: {{ c.stencilSize }} + 30 = {{ c.stencilSize + 30 }} → 进位到
-        <strong>{{ c.jigSize }}</strong> mm
-      </span>
+      <span>{{ t('config.jigHint', { s: c.stencilSize, j: c.jigSize }) }}</span>
     </div>
     <div class="field">
-      <label class="field-label">夹具边长 (mm)</label>
+      <label class="field-label">{{ t('config.jigSide') }}</label>
       <el-input-number
         v-model="c.jigSize"
         :min="60"
@@ -119,23 +118,23 @@ function resetAll() {
     </div>
 
     <!-- 插板 -->
-    <div class="section-label">插板（PCB 支撑）</div>
+    <div class="section-label">{{ t('config.insert') }}</div>
     <div class="field-row field-row-3">
       <div class="field">
-        <label class="field-label">厚度</label>
+        <label class="field-label">{{ t('config.insertHeight') }}</label>
         <el-input-number v-model="c.insertHeight" :min="3" :max="20" :step="0.5" size="small" style="width: 100%" />
       </div>
       <div class="field">
-        <label class="field-label">柱半径</label>
+        <label class="field-label">{{ t('config.supportRadius') }}</label>
         <el-input-number v-model="c.pcbSupportRadius" :min="0" :max="10" :step="0.5" size="small" style="width: 100%" />
       </div>
       <div class="field">
-        <label class="field-label">柱偏移</label>
+        <label class="field-label">{{ t('config.supportOffset') }}</label>
         <el-input-number v-model="c.pcbSupportOffset" :min="20" :max="100" :step="1" size="small" style="width: 100%" />
       </div>
     </div>
 
-    <button class="reset-btn" @click="resetAll">重置为默认值</button>
+    <button class="reset-btn" @click="resetAll">{{ t('config.reset') }}</button>
   </div>
 </template>
 

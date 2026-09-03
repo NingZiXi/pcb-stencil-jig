@@ -2,9 +2,11 @@
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
+import { useI18n } from "vue-i18n";
 import { useConfigStore } from "../stores/config";
 import { ElMessage } from "element-plus";
 
+const { t } = useI18n();
 const store = useConfigStore();
 const working = ref(false);
 
@@ -33,7 +35,7 @@ function buildScadParams() {
 
 async function saveProject() {
   const path = await save({
-    title: "保存项目配置",
+    title: t("project.saveTitle"),
     defaultPath: "stencil-jig-project.json",
     filters: [{ name: "JSON", extensions: ["json"] }],
   });
@@ -46,9 +48,9 @@ async function saveProject() {
       config: buildScadParams(),
       gerberFilename: store.config.gerberFilename,
     });
-    ElMessage.success(`已保存: ${path}`);
+    ElMessage.success(t("project.saved", { path }));
   } catch (e) {
-    ElMessage.error(`保存失败: ${e}`);
+    ElMessage.error(t("project.saveFailed", { msg: e }));
   } finally {
     working.value = false;
   }
@@ -56,7 +58,7 @@ async function saveProject() {
 
 async function loadProject() {
   const path = await open({
-    title: "加载项目配置",
+    title: t("project.loadTitle"),
     multiple: false,
     filters: [{ name: "JSON", extensions: ["json"] }],
   });
@@ -91,9 +93,9 @@ async function loadProject() {
     store.config.pcbOutlinePoints = cfg.pcb_outline_points ?? [];
     store.config.gerberFilename = project.gerber_filename;
 
-    ElMessage.success("项目已加载");
+    ElMessage.success(t("project.loaded"));
   } catch (e) {
-    ElMessage.error(`加载失败: ${e}`);
+    ElMessage.error(t("project.loadFailed", { msg: e }));
   } finally {
     working.value = false;
   }
@@ -104,7 +106,7 @@ async function loadProject() {
   <div class="project-menu">
     <el-button-group class="project-menu__actions">
       <el-button :loading="working" size="small" @click="loadProject">
-        加载项目
+        {{ t('project.load') }}
       </el-button>
       <el-button
         :loading="working"
@@ -112,7 +114,7 @@ async function loadProject() {
         type="primary"
         @click="saveProject"
       >
-        保存项目
+        {{ t('project.save') }}
       </el-button>
     </el-button-group>
     <span

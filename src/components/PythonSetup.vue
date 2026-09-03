@@ -2,8 +2,10 @@
 import { ref, onMounted } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
+import { useI18n } from "vue-i18n";
 import { useConfigStore } from "../stores/config";
 
+const { t } = useI18n();
 const store = useConfigStore();
 const manualPath = ref("");
 const saving = ref(false);
@@ -48,7 +50,7 @@ async function savePath(path: string) {
 async function clearPath() {
   store.pythonPath = null;
   store.pythonDetected = false;
-  store.pythonError = "用户清除了自定义路径,点击重新检测使用系统默认";
+  store.pythonError = t("python.cleared");
 }
 
 onMounted(() => {
@@ -63,23 +65,19 @@ onMounted(() => {
         <code>{{ store.pythonPath }}</code>
       </div>
       <div class="actions">
-        <el-button size="small" plain @click="store.detectPython">重新检测</el-button>
-        <el-button size="small" plain @click="clearPath">清除配置</el-button>
+        <el-button size="small" plain @click="store.detectPython">{{ t('python.reDetect') }}</el-button>
+        <el-button size="small" plain @click="clearPath">{{ t('python.clearConfig') }}</el-button>
       </div>
     </div>
 
     <div v-else class="setup">
       <el-alert
-        :title="store.pythonError || '未检测到 Python'"
+        :title="store.pythonError || t('cards.notDetected')"
         type="warning"
         :closable="false"
         class="alert"
       />
-      <p class="hint">
-        需要 <strong>Python 3.10+</strong> + <code>build123d</code> + <code>shapely</code>。
-        安装命令:
-        <code>pip install build123d shapely numpy</code>
-      </p>
+      <p class="hint">{{ t('python.needHint') }}</p>
 
       <div class="manual">
         <el-input
@@ -90,7 +88,7 @@ onMounted(() => {
           @keyup.enter="savePathDirect"
         />
         <el-button size="small" type="primary" :loading="saving" @click="pickAndSave">
-          选择文件...
+          {{ t('python.pickFile') }}
         </el-button>
       </div>
 
@@ -102,9 +100,9 @@ onMounted(() => {
           :loading="saving"
           @click="savePathDirect"
         >
-          保存路径
+          {{ t('python.savePath') }}
         </el-button>
-        <el-button size="small" plain @click="store.detectPython">再次自动检测</el-button>
+        <el-button size="small" plain @click="store.detectPython">{{ t('python.detectAgain') }}</el-button>
       </div>
     </div>
   </div>
