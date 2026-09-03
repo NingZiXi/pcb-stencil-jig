@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from "vue";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useConfigStore } from "./stores/config";
 import ConfigForm from "./components/ConfigForm.vue";
 import ModelPreview from "./components/ModelPreview.vue";
@@ -9,6 +11,24 @@ import PythonSetup from "./components/PythonSetup.vue";
 import ProjectMenu from "./components/ProjectMenu.vue";
 
 const configStore = useConfigStore();
+
+// ===== 自定义标题栏(decorations:false,与页眉融合) =====
+const appWindow = getCurrentWindow();
+const isMaximized = ref(false);
+let unlistenMaximize: UnlistenFn | null = null;
+
+async function initWindowState() {
+  isMaximized.value = await appWindow.isMaximized();
+  // 旧版 @tauri-apps/api 无 onMaximizedChanged,用 onResized + 查询代替
+  unlistenMaximize = await appWindow.onResized(async () => {
+    isMaximized.value = await appWindow.isMaximized();
+  });
+}
+
+onMounted(initWindowState);
+onBeforeUnmount(() => {
+  unlistenMaximize?.();
+});
 
 // 侧栏宽度
 const sidebarWidth = ref(480);
@@ -190,10 +210,10 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="app-shell">
-    <header class="app-header">
-      <div class="header-brand">
+    <header class="app-header" data-tauri-drag-region>
+      <div class="header-brand" data-tauri-drag-region>
         <!-- Logo:板框四孔(夹具俯视图:板框 + 四角螺丝孔 + 钢网窗口) -->
-        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true" data-tauri-drag-region>
           <rect x="5" y="5" width="54" height="54" rx="11" fill="none" stroke="var(--bg-brand)" stroke-width="6" />
           <rect x="23" y="23" width="18" height="18" rx="4" fill="var(--brand-500)" />
           <circle cx="14.5" cy="14.5" r="3.5" fill="var(--icon-default)" />
@@ -201,13 +221,48 @@ onBeforeUnmount(() => {
           <circle cx="14.5" cy="49.5" r="3.5" fill="var(--icon-default)" />
           <circle cx="49.5" cy="49.5" r="3.5" fill="var(--icon-default)" />
         </svg>
-        <div class="header-titles">
-          <h1>PCB 钢网夹具生成器</h1>
-          <span class="subtitle">从 Gerber 一键生成可 3D 打印的锡膏刷钢网定位夹具</span>
+        <div class="header-titles" data-tauri-drag-region>
+          <h1 data-tauri-drag-region>PCB 钢网夹具生成器</h1>
+          <span class="subtitle" data-tauri-drag-region>从 Gerber 一键生成可 3D 打印的锡膏刷钢网定位夹具</span>
         </div>
       </div>
-      <div class="spacer" />
+      <div class="spacer" data-tauri-drag-region />
       <ProjectMenu />
+
+      <!-- 窗口控制(与页眉融合,替代系统标题栏) -->
+      <div class="window-controls">
+        <button
+          class="win-btn"
+          title="最小化"
+          @click="appWindow.minimize()"
+        >
+          <svg viewBox="0 0 10 10" width="10" height="10">
+            <path d="M1 5h8" stroke="currentColor" stroke-width="1" />
+          </svg>
+        </button>
+        <button
+          class="win-btn"
+          :title="isMaximized ? '还原' : '最大化'"
+          @click="appWindow.toggleMaximize()"
+        >
+          <svg v-if="isMaximized" viewBox="0 0 10 10" width="10" height="10">
+            <rect x="1.5" y="3.5" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1" />
+            <path d="M3.5 3.5V1.5h5v5h-2" fill="none" stroke="currentColor" stroke-width="1" />
+          </svg>
+          <svg v-else viewBox="0 0 10 10" width="10" height="10">
+            <rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1" />
+          </svg>
+        </button>
+        <button
+          class="win-btn win-close"
+          title="关闭"
+          @click="appWindow.close()"
+        >
+          <svg viewBox="0 0 10 10" width="10" height="10">
+            <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1" />
+          </svg>
+        </button>
+      </div>
     </header>
 
     <main class="app-main">
@@ -332,12 +387,52 @@ onBeforeUnmount(() => {
 .app-header {
   flex: 0 0 auto;
   height: 56px;
-  padding: 0 24px;
+  padding: 0 0 0 24px; /* 右侧留白交给窗口控制按钮区 */
   background: var(--bg-base-default);
   border-bottom: 1px solid var(--border-neutral-l1);
   display: flex;
   align-items: center;
   gap: 16px;
+  user-select: none;
+}
+
+/* ===== 窗口控制(融合标题栏) ===== */
+.window-controls {
+  display: flex;
+  align-items: stretch;
+  margin-left: auto;
+  align-self: stretch;
+}
+
+.win-btn {
+  width: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.win-btn:hover {
+  background: var(--bg-overlay-l2);
+  color: var(--text-default);
+}
+
+.win-btn:active {
+  background: var(--bg-overlay-l3);
+}
+
+.win-btn.win-close:hover {
+  background: #E8463A;
+  color: #FFFFFF;
+}
+
+.win-btn.win-close:active {
+  background: #C9382F;
+  color: #FFFFFF;
 }
 
 .header-brand {
