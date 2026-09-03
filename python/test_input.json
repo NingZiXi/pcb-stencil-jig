@@ -1,0 +1,19 @@
+{
+  "pcb_size_x": 50.0,
+  "pcb_size_y": 50.0,
+  "pcb_thickness": 1.6,
+  "pcb_pocket_clearance": 0.15,
+  "pcb_outline_points": [],
+  "stencil_size_x": 60.0,
+  "stencil_size_y": 60.0,
+  "stencil_clamp_depth": 0.4,
+  "screw_spacing": 40.0,
+  "base_height": 8.0,
+  "top_cover_height": 4.0,
+  "post_diameter": 6.0,
+  "post_height": 6.0,
+  "thumbscrew_head_d": 8.0,
+  "thumbscrew_clearance_d": 3.2,
+  "jig_size_x": 100.0,
+  "jig_size_y": 100.0
+}

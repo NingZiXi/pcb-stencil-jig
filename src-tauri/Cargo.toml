@@ -1,0 +1,30 @@
+[package]
+name = "pcb-stencil-jig"
+version = "0.1.0"
+description = "PCB 钢网夹具生成器 - 自动生成 PCB 锡膏刷钢网定位夹具"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "pcb_stencil_jig_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-store = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+handlebars = "6"
+thiserror = "1"
+tokio = { version = "1", features = ["process", "io-util", "time"] }
+uuid = { version = "1", features = ["v4"] }
+regex = "1"
+
+[target.'cfg(windows)'.dependencies]
+# Windows-specific deps if needed

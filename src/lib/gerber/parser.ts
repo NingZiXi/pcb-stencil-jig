@@ -1,0 +1,279 @@
+/**
+ * 轻量 Gerber 文件解析器 - 浏览器原生实现
+ *
+ * 目的:从板框 Gerber 文件提取所有坐标点,用于计算包围盒 + 多边形轮廓。
+ * 不需要完整 Gerber 语义解析,只关心:
+ * - 单位 (mm/in)
+ * - 坐标格式 (places + zero suppression)
+ * - X/Y 坐标和 I/J 弧心偏移
+ * - **弧线模式跟踪**(G02/G03 跨行也能正确识别)
+ *
+ * 不依赖 Node stream / readable-stream,纯字符串解析。
+ */
+
+export interface GerberFormat {
+  /** [整数位数, 小数位数] */
+  places: [number, number];
+  /** 'L' = leading zero suppression (默认), 'T' = trailing */
+  zero: "L" | "T";
+}
+
+/** 解析出的单个 Gerber 命令 */
+export interface ParsedCommand {
+  type: string;
+  op?: string;
+  /** 是否为弧线(由当前模式决定,与 D01 同行的 G02/G03 也算) */
+  isArc: boolean;
+  /** 弧线方向:undefined=直线, true=CCW(G03), false=CW(G02) */
+  ccw?: boolean;
+  x?: number;
+  y?: number;
+  i?: number;
+  j?: number;
+  raw?: string;
+  [key: string]: unknown;
+}
+
+export interface ParseResult {
+  format: GerberFormat;
+  units: "mm" | "in" | null;
+  commands: ParsedCommand[];
+}
+
+const TWO_PI = Math.PI * 2;
+const ARC_PRECISION_MM = 0.1;
+const ARC_MIN_SEGMENTS = 8;
+const ARC_MAX_SEGMENTS = 200;
+
+/**
+ * 从 Gerber 文本解析出单位、格式和命令列表。
+ * 弧线模式(G02/G03)可以与 D01 在不同行,parser 会跨行跟踪模式。
+ */
+export function parseGerber(text: string): ParseResult {
+  const commands: ParsedCommand[] = [];
+  const format: GerberFormat = { places: [3, 6], zero: "L" };
+  let units: "mm" | "in" | null = null;
+  // 当前弧线模式:undefined=直线, true=CCW, false=CW
+  let arcModeCCW: boolean | undefined = undefined;
+
+  const lines = text.split(/\r?\n/);
+
+  // 跟踪当前 X/Y(用于缺省保留)
+  let prevX = 0;
+  let prevY = 0;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("G04")) continue;
+
+    // 单位 + 格式(必须在 trim 之前的原始行上匹配,因为指令以 % 开头)
+    const fsMatch = rawLine.match(/%FS([LT])?AX(\d)(\d)Y(\d)(\d)\*%/);
+    if (fsMatch) {
+      format.zero = (fsMatch[1] as "L" | "T") || "L";
+      format.places = [parseInt(fsMatch[2], 10), parseInt(fsMatch[3], 10)];
+    }
+    const moMatch = rawLine.match(/%MO(IN|MM)\*%/i);
+    if (moMatch) {
+      units = moMatch[1].toUpperCase() === "MM" ? "mm" : "in";
+    }
+
+    // 更新弧线模式(G02=CW, G03=CCW, G01=直线)
+    // 同一行可能既有 G03 又有 D01,不能 continue!
+    // 注意:不能用 \b 边界(G 后跟数字不是边界),改为数字前后断言
+    if (/(?<!\d)G02(?!\d)/i.test(line)) arcModeCCW = false;
+    if (/(?<!\d)G03(?!\d)/i.test(line)) arcModeCCW = true;
+    if (/(?<!\d)G01(?!\d)/i.test(line)) arcModeCCW = undefined;
+
+    // 解析 D01/D02/D03
+    const xMatch = line.match(/X(-?\d+)/);
+    const yMatch = line.match(/Y(-?\d+)/);
+    const iMatch = line.match(/I(-?\d+)/);
+    const jMatch = line.match(/J(-?\d+)/);
+    if (!xMatch && !yMatch) continue;
+
+    // 缺省行为:Gerber spec 规定 X/Y 省略时保留上一次的值
+    const x = xMatch ? parseInt(xMatch[1], 10) : prevX;
+    const y = yMatch ? parseInt(yMatch[1], 10) : prevY;
+    const i = iMatch ? parseInt(iMatch[1], 10) : 0;
+    const j = jMatch ? parseInt(jMatch[1], 10) : 0;
+
+    if (/D02\*/.test(line)) {
+      commands.push({
+        type: "op",
+        op: "move",
+        isArc: false,
+        x,
+        y,
+        raw: line,
+      });
+    } else if (/D03\*/.test(line)) {
+      // flash - 不属于轮廓,跳过
+      continue;
+    } else if (/D01\*/.test(line)) {
+      // interpolate: 检测是否带 I/J(弧线)
+      const hasArcOffset = i !== 0 || j !== 0;
+      const isArc = hasArcOffset && arcModeCCW !== undefined;
+
+      commands.push({
+        type: "op",
+        op: "interpolate",
+        isArc,
+        ccw: isArc ? arcModeCCW : undefined,
+        x,
+        y,
+        i: hasArcOffset ? i : undefined,
+        j: hasArcOffset ? j : undefined,
+        raw: line,
+      });
+    }
+
+    // 更新本次的 prevX/prevY(给下一行用)
+    if (xMatch) prevX = x;
+    if (yMatch) prevY = y;
+  }
+
+  return { format, units, commands };
+}
+
+/**
+ * 从 Gerber 文本提取板框多边形轮廓(已闭合,弧线已线性化)
+ */
+export function extractOutline(text: string): GerberOutline {
+  const { format, units, commands } = parseGerber(text);
+  const inToMm = 25.4;
+  let totalCommands = commands.length;
+  let arcs = 0;
+
+  const toMm = (raw: number): number => {
+    const v = raw / Math.pow(10, format.places[1]);
+    return units === "in" ? v * inToMm : v;
+  };
+
+  const rawPoints: Array<[number, number]> = [];
+  // X/Y 在命令列表里已经是缺省保留后的最终值,直接用
+  let prevX = 0;
+  let prevY = 0;
+
+  for (const cmd of commands) {
+    if (cmd.type !== "op") continue;
+
+    const currX = cmd.x as number;
+    const currY = cmd.y as number;
+
+    if (cmd.op === "move") {
+      rawPoints.push([toMm(currX), toMm(currY)]);
+      // move 后,prevX/prevY 更新到新位置
+      prevX = currX;
+      prevY = currY;
+    } else if (cmd.op === "interpolate") {
+      const x = toMm(currX);
+      const y = toMm(currY);
+      const i = cmd.i !== undefined ? toMm(cmd.i as number) : 0;
+      const j = cmd.j !== undefined ? toMm(cmd.j as number) : 0;
+
+      if (cmd.isArc && (Math.abs(i) > 1e-9 || Math.abs(j) > 1e-9)) {
+        const prevXmm = toMm(prevX);
+        const prevYmm = toMm(prevY);
+        const cx = prevXmm + i;
+        const cy = prevYmm + j;
+        const radius = Math.sqrt(i * i + j * j);
+        const ccw = cmd.ccw === true;
+
+        if (radius < 1e-9) {
+          rawPoints.push([x, y]);
+          continue;
+        }
+
+        const startAngle = Math.atan2(prevYmm - cy, prevXmm - cx);
+        let endAngle = Math.atan2(y - cy, x - cx);
+
+        let delta = endAngle - startAngle;
+        if (ccw) {
+          while (delta <= 0) delta += TWO_PI;
+        } else {
+          while (delta >= 0) delta -= TWO_PI;
+        }
+
+        const arcLen = Math.abs(delta) * radius;
+        const segs = Math.max(
+          ARC_MIN_SEGMENTS,
+          Math.min(ARC_MAX_SEGMENTS, Math.ceil(arcLen / ARC_PRECISION_MM))
+        );
+        const stepAngle = delta / segs;
+
+        for (let s = 1; s <= segs; s++) {
+          const a = startAngle + stepAngle * s;
+          rawPoints.push([cx + radius * Math.cos(a), cy + radius * Math.sin(a)]);
+        }
+        arcs++;
+      } else {
+        rawPoints.push([x, y]);
+      }
+      // 无论直线还是弧线,interpolate 后 prevX/prevY 更新到当前点(给下一条命令用)
+      prevX = currX;
+      prevY = currY;
+    }
+  }
+
+  // 自动闭合
+  if (rawPoints.length > 1) {
+    const first = rawPoints[0];
+    const last = rawPoints[rawPoints.length - 1];
+    const dx = first[0] - last[0];
+    const dy = first[1] - last[1];
+    if (Math.sqrt(dx * dx + dy * dy) > 0.01) {
+      rawPoints.push([first[0], first[1]]);
+    }
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of rawPoints) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+
+  return {
+    points: rawPoints,
+    bbox: {
+      minX: isFinite(minX) ? minX : 0,
+      minY: isFinite(minY) ? minY : 0,
+      maxX: isFinite(maxX) ? maxX : 0,
+      maxY: isFinite(maxY) ? maxY : 0,
+      units,
+      commandCount: rawPoints.length,
+    },
+    units,
+    arcsLinearized: arcs,
+    totalCommands,
+  };
+}
+
+export interface BoundingBox {
+  /** mm */
+  minX: number;
+  /** mm */
+  minY: number;
+  /** mm */
+  maxX: number;
+  /** mm */
+  maxY: number;
+  /** 原始单位 */
+  units: "mm" | "in" | null;
+  /** 检测到的命令数 */
+  commandCount: number;
+}
+
+export interface GerberOutline {
+  /** 多边形顶点(已闭合,首尾相同) — 单位:mm,原点在 Gerber 原点 */
+  points: Array<[number, number]>;
+  /** 包围盒(基于多边形顶点) */
+  bbox: BoundingBox;
+  /** 单位 */
+  units: "mm" | "in" | null;
+  /** 线性化弧线数 */
+  arcsLinearized: number;
+  /** Gerber 命令总数(便于诊断) */
+  totalCommands: number;
+}

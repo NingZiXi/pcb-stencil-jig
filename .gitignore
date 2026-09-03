@@ -1,0 +1,38 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Rust / Tauri 构建产物
+src-tauri/target
+src-tauri/gen
+
+# Python
+__pycache__/
+*.pyc
+
+# Claude Code 本地配置
+.claude/
+
+# 本地测试产物
+test_out/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
