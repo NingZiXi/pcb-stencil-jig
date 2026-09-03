@@ -79,7 +79,7 @@ function initThreeScene() {
   const h = container.clientHeight;
 
   const s = new THREE.Scene();
-  s.background = new THREE.Color(0xf5f7fa);
+  s.background = new THREE.Color(0xF5F5F5);
 
   // 相机:斜俯视(参考 Dream_maker 风格,约 30° 俯视,既看布局又看高度)
   const cam = new THREE.PerspectiveCamera(45, w / h, 0.1, 5000);
@@ -104,7 +104,7 @@ function initThreeScene() {
   s.add(dirLight2);
 
   // 网格地板
-  const gridHelper = new THREE.GridHelper(400, 20, 0x909399, 0xdcdfe6);
+  const gridHelper = new THREE.GridHelper(400, 20, 0x737373, 0xD4D4D4);
   s.add(gridHelper);
 
   // 坐标轴
@@ -115,8 +115,8 @@ function initThreeScene() {
   const ctrl = new OrbitControls(cam, canvas);
   ctrl.enableDamping = true;
   ctrl.dampingFactor = 0.08;
-  ctrl.autoRotate = false;//关闭自动旋转,让用户看清模型躺平
-  ctrl.autoRotateSpeed = 0.8;  // 慢速旋转,看清 3D
+  ctrl.autoRotate = false;
+  ctrl.autoRotateSpeed = 0.8;
 
   scene.value = s;
   camera.value = cam;
@@ -147,6 +147,9 @@ function disposeMesh() {
   }
 }
 
+// 渲染序号:切 tab / 参数变化后,丢弃仍在途的旧请求结果,防止旧模型覆盖新 tab
+let renderSeq = 0;
+
 async function renderCurrent() {
   if (!scene.value || !store.pythonDetected) {
     if (!store.pythonDetected) {
@@ -155,8 +158,11 @@ async function renderCurrent() {
     return;
   }
 
+  const seq = ++renderSeq;
+  const partName = activePart.value; // 捕获请求发起时的部件,await 后不再读响应式值
+
   // 查缓存:同 part + 同 params → 直接用缓存 bytes,跳过 Python 调用
-  const cached = stlCache.value[activePart.value];
+  const cached = stlCache.value[partName];
   const hash = paramsHash();
   if (cached && cached.paramsHash === hash) {
     applyStlToMesh(cached.bytes);
@@ -169,20 +175,27 @@ async function renderCurrent() {
 
   try {
     const params = buildScadParams();
-    const part = PART_TO_RUST[activePart.value];
+    const part = PART_TO_RUST[partName];
     const bytes = await invoke<number[]>("generate_stl", { params, part });
 
-    // 缓存 bytes(下次同 part + 同参数就直接用)
+    // 缓存 bytes:key 用捕获的 partName(结果属于发起请求的部件)
     stlCache.value = {
       ...stlCache.value,
-      [activePart.value]: { bytes, paramsHash: hash },
+      [partName]: { bytes, paramsHash: hash },
     };
+
+    // 过期检查:期间用户已切 tab / 参数已变 → 不应用,由新的渲染负责
+    if (seq !== renderSeq || activePart.value !== partName) return;
 
     applyStlToMesh(bytes);
   } catch (e) {
-    errorMsg.value = e instanceof Error ? e.message : String(e);
+    if (seq === renderSeq) {
+      errorMsg.value = e instanceof Error ? e.message : String(e);
+    }
   } finally {
-    loading.value = false;
+    if (seq === renderSeq) {
+      loading.value = false;
+    }
   }
 }
 
@@ -194,12 +207,13 @@ function applyStlToMesh(bytes: number[]) {
   geometry.center();
   geometry.computeVertexNormals();
 
+  // TraeWork colors: base=brand, insert=success, cover=amber
   const color =
     activePart.value === "base"
-      ? 0x409eff
+      ? 0x4B3FE3
       : activePart.value === "insert"
-      ? 0x67c23a
-      : 0xe6a23c;
+      ? 0x15A877
+      : 0xF2A90C;
   const material = new THREE.MeshStandardMaterial({
     color,
     metalness: 0.1,
@@ -357,41 +371,70 @@ async function exportAllStl() {
     loading.value = false;
   }
 }
+
+const partTabs: { name: PartName; label: string; color: string }[] = [
+  { name: "insert", label: "PCB 托盘", color: "#15A877" },
+  { name: "base", label: "B 面 · 底座", color: "#4B3FE3" },
+  { name: "cover", label: "A 面 · 顶盖", color: "#F2A90C" },
+];
 </script>
 
 <template>
   <div class="preview-wrapper">
     <div class="preview-header">
-      <el-tabs v-model="activePart" class="part-tabs">
-        <!-- 顺序:insert=PCB托盘(每块 PCB 专属,最常看) → base=B面底座 → cover=A面顶盖(可复用) -->
-        <el-tab-pane label="PCB 托盘" name="insert" />
-        <el-tab-pane label="钢网夹 B 面 · 底座" name="base" />
-        <el-tab-pane label="钢网夹 A 面 · 顶盖" name="cover" />
-      </el-tabs>
-      <el-button size="small" @click="refreshAll" :loading="refreshing">
-        刷新模型
-      </el-button>
-      <el-button size="small" type="primary" @click="exportAllStl">
-        导出 STL
-      </el-button>
-      <el-tag v-if="preloading.size > 0" size="small" type="info" effect="plain">
-        预加载 {{ 3 - preloading.size }}/3
-      </el-tag>
+      <div class="tab-group">
+        <button
+          v-for="tab in partTabs"
+          :key="tab.name"
+          class="tab-btn"
+          :class="{ active: activePart === tab.name }"
+          @click="activePart = tab.name"
+        >
+          <span class="tab-dot" :style="{ background: tab.color }" />
+          {{ tab.label }}
+        </button>
+      </div>
+      <div class="header-actions">
+        <span v-if="preloading.size > 0" class="preload-badge">
+          预加载 {{ 3 - preloading.size }}/3
+        </span>
+        <button class="action-btn" @click="refreshAll" :disabled="refreshing">
+          <svg viewBox="0 0 16 16" width="14" height="14" :class="{ spinning: refreshing }">
+            <path d="M13 8a5 5 0 1 1-1.5-3.5M13 3v3h-3"
+              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          刷新
+        </button>
+        <button class="action-btn primary" @click="exportAllStl">
+          <svg viewBox="0 0 16 16" width="14" height="14">
+            <path d="M3 3v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6l-3-3H4a1 1 0 0 0-1 1zM6 3v3h4M8 8v3M6.5 9.5L8 11l1.5-1.5"
+              fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          导出 STL
+        </button>
+      </div>
     </div>
 
     <div class="canvas-container">
       <canvas ref="canvasEl" />
       <div v-if="loading" class="overlay">
-        <el-icon class="is-loading"><i-ep-loading /></el-icon>
-        <span>渲染中...</span>
+        <svg class="spin-icon" viewBox="0 0 16 16" width="20" height="20">
+          <path d="M8 2a6 6 0 1 0 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <span>渲染中…</span>
       </div>
-      <div v-if="!store.pythonDetected" class="overlay warning">
-        <span>⚠ Python 环境未检测到,无法预览</span>
+      <div v-if="!store.pythonDetected && !loading" class="overlay warning">
+        <svg viewBox="0 0 16 16" width="16" height="16">
+          <path d="M8 2L1 14h14L8 2zM8 6v4M8 12v.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>Python 环境未检测到,无法预览</span>
       </div>
-      <div v-if="errorMsg" class="overlay error">
+      <div v-if="errorMsg && !loading" class="overlay error">
         <span>{{ errorMsg }}</span>
       </div>
-      <div class="hint">左键旋转 · 右键平移 · 滚轮缩放</div>
+      <div class="viewport-hint">
+        左键旋转 · 右键平移 · 滚轮缩放
+      </div>
     </div>
   </div>
 </template>
@@ -403,28 +446,132 @@ async function exportAllStl() {
   height: 100%;
 }
 
+/* Header */
 .preview-header {
   flex: 0 0 auto;
-  background: #fff;
-  border-bottom: 1px solid #ebeef5;
+  height: 48px;
+  background: var(--bg-base-default);
+  border-bottom: 1px solid var(--border-neutral-l1);
   padding: 0 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
 }
 
-.preview-header :deep(.el-tabs__header) {
-  margin: 0;
-}
-
-.part-tabs {
+/* Tab Group */
+.tab-group {
+  display: flex;
+  gap: 2px;
   flex: 1;
 }
 
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius-6);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  font-family: inherit;
+}
+
+.tab-btn:hover {
+  background: var(--bg-overlay-l1);
+  color: var(--text-secondary);
+}
+
+.tab-btn.active {
+  background: var(--bg-overlay-l2);
+  color: var(--text-default);
+}
+
+.tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preload-badge {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 2px 8px;
+  background: var(--bg-overlay-l1);
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-mono);
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--border-neutral-l2);
+  border-radius: var(--radius-6);
+  background: var(--bg-base-default);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+  font-family: inherit;
+}
+
+.action-btn:hover {
+  background: var(--bg-overlay-l1);
+  border-color: var(--border-neutral-l3);
+  color: var(--text-default);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.primary {
+  background: var(--bg-brand);
+  border-color: var(--bg-brand);
+  color: var(--text-onbrand);
+}
+
+.action-btn.primary:hover {
+  background: var(--bg-brand-hover);
+  border-color: var(--bg-brand-hover);
+  color: var(--text-onbrand);
+}
+
+.action-btn svg {
+  color: inherit;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Canvas */
 .canvas-container {
   flex: 1 1 auto;
   position: relative;
   overflow: hidden;
+  background: var(--bg-base-secondary);
 }
 
 canvas {
@@ -433,40 +580,47 @@ canvas {
   height: 100%;
 }
 
+/* Overlays */
 .overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.85);
-  color: #409eff;
-  font-size: 14px;
+  background: rgba(245, 245, 245, 0.88);
+  color: var(--text-secondary);
+  font-size: 13px;
   pointer-events: none;
+  backdrop-filter: blur(4px);
 }
 
 .overlay.warning {
-  color: #e6a23c;
+  color: var(--status-warning-default);
 }
 
 .overlay.error {
-  color: #f56c6c;
-  background: rgba(255, 255, 255, 0.92);
+  color: var(--status-error-default);
+  background: rgba(245, 245, 245, 0.92);
 }
 
-.hint {
+.spin-icon {
+  color: var(--bg-brand);
+  animation: spin 1s linear infinite;
+}
+
+/* Viewport Hint */
+.viewport-hint {
   position: absolute;
   bottom: 12px;
   right: 12px;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
-  font-size: 11px;
+  background: rgba(38, 38, 38, 0.72);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 10px;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-6);
   pointer-events: none;
+  font-family: var(--font-family-default);
+  backdrop-filter: blur(4px);
 }
 </style>
