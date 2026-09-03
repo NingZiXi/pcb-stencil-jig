@@ -192,7 +192,15 @@ onBeforeUnmount(() => {
   <div class="app-shell">
     <header class="app-header">
       <div class="header-brand">
-        <div class="brand-mark" />
+        <!-- Logo:板框四孔(夹具俯视图:板框 + 四角螺丝孔 + 钢网窗口) -->
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="5" y="5" width="54" height="54" rx="11" fill="none" stroke="var(--bg-brand)" stroke-width="6" />
+          <rect x="23" y="23" width="18" height="18" rx="4" fill="var(--brand-500)" />
+          <circle cx="14.5" cy="14.5" r="3.5" fill="var(--icon-default)" />
+          <circle cx="49.5" cy="14.5" r="3.5" fill="var(--icon-default)" />
+          <circle cx="14.5" cy="49.5" r="3.5" fill="var(--icon-default)" />
+          <circle cx="49.5" cy="49.5" r="3.5" fill="var(--icon-default)" />
+        </svg>
         <div class="header-titles">
           <h1>PCB 钢网夹具生成器</h1>
           <span class="subtitle">从 Gerber 一键生成可 3D 打印的锡膏刷钢网定位夹具</span>
@@ -341,19 +349,7 @@ onBeforeUnmount(() => {
 .brand-mark {
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-8);
-  background: var(--bg-brand);
-  position: relative;
   flex-shrink: 0;
-}
-
-.brand-mark::after {
-  content: '';
-  position: absolute;
-  inset: 6px;
-  border: 2px solid var(--bg-base-default);
-  border-radius: 2px;
-  opacity: 0.85;
 }
 
 .header-titles {

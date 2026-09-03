@@ -207,13 +207,13 @@ function applyStlToMesh(bytes: number[]) {
   geometry.center();
   geometry.computeVertexNormals();
 
-  // TraeWork colors: base=brand, insert=success, cover=amber
+  // 部件配色:insert=青瓷绿(品牌主部件)、base=石板蓝、cover=琥珀
   const color =
     activePart.value === "base"
-      ? 0x4B3FE3
+      ? 0x4C6F94
       : activePart.value === "insert"
-      ? 0x15A877
-      : 0xF2A90C;
+      ? 0x5A9B7F
+      : 0xD9913D;
   const material = new THREE.MeshStandardMaterial({
     color,
     metalness: 0.1,
@@ -373,9 +373,9 @@ async function exportAllStl() {
 }
 
 const partTabs: { name: PartName; label: string; color: string }[] = [
-  { name: "insert", label: "PCB 托盘", color: "#15A877" },
-  { name: "base", label: "B 面 · 底座", color: "#4B3FE3" },
-  { name: "cover", label: "A 面 · 顶盖", color: "#F2A90C" },
+  { name: "insert", label: "PCB 托盘", color: "#5A9B7F" },
+  { name: "base", label: "B 面 · 底座", color: "#4C6F94" },
+  { name: "cover", label: "A 面 · 顶盖", color: "#D9913D" },
 ];
 </script>
 

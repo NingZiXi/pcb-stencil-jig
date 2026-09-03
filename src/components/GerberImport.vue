@@ -183,8 +183,8 @@ function fmt(n: number): string {
         <g transform="scale(1, -1)">
           <polygon
             :points="result.outlinePoints.map(p => `${p[0]},${p[1]}`).join(' ')"
-            fill="rgba(75,63,227,0.10)"
-            stroke="#4B3FE3"
+            fill="rgba(62,125,98,0.10)"
+            stroke="#3E7D62"
             stroke-width="0.3"
           />
         </g>

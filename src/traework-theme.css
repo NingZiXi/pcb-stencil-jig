@@ -2,7 +2,7 @@
  * TraeWork Design System - Theme Application
  * Applies TraeWork Light-mode tokens to Element Plus.
  *
- * Brand: #4B3FE3 (indigo-purple)
+ * Brand: #3E7D62 (celadon green)
  * Surface: #FFFFFF / #F5F5F5
  * Typography: SF Pro Text / PingFang SC
  * Philosophy: Quiet surfaces, restrained borders, type-first hierarchy.
@@ -86,11 +86,11 @@
   --bg-invert: #262626;
 
   /* Brand */
-  --bg-brand: #4B3FE3;
-  --bg-brand-hover: #6A6FFF;
-  --bg-brand-active: #3F31C6;
-  --bg-brand-disabled: rgba(75, 63, 227, 0.22);
-  --bg-brand-popup: rgba(170, 183, 255, 0.36);
+  --bg-brand: #3E7D62;
+  --bg-brand-hover: #4A8A70;
+  --bg-brand-active: #32684F;
+  --bg-brand-disabled: rgba(62, 125, 98, 0.22);
+  --bg-brand-popup: rgba(178, 209, 192, 0.36);
 
   /* Text */
   --text-default: #171717;
@@ -98,8 +98,8 @@
   --text-tertiary: #737373;
   --text-disabled: #A1A1A1;
   --text-onbrand: #FFFFFF;
-  --text-brand: #4B3FE3;
-  --text-brand-hover: #6A6FFF;
+  --text-brand: #3E7D62;
+  --text-brand-hover: #4A8A70;
 
   /* Icons */
   --icon-default: #262626;
@@ -107,13 +107,13 @@
   --icon-tertiary: #737373;
   --icon-disabled: #A1A1A1;
   --icon-onbrand: #FFFFFF;
-  --icon-brand: #4B3FE3;
+  --icon-brand: #3E7D62;
 
   /* Borders */
   --border-neutral-l1: rgba(115, 115, 115, 0.12);
   --border-neutral-l2: rgba(115, 115, 115, 0.18);
   --border-neutral-l3: rgba(115, 115, 115, 0.36);
-  --border-brand: #4B3FE3;
+  --border-brand: #3E7D62;
 
   /* Status */
   --status-success-default: #15A877;
@@ -126,14 +126,14 @@
   --status-primary-surface-l1: rgba(47, 116, 255, 0.12);
 
   /* Brand scale */
-  --brand-50: #F2F7FF;
-  --brand-100: #E5EAFF;
-  --brand-200: #CFD8FF;
-  --brand-300: #AAB7FF;
-  --brand-400: #8894FF;
-  --brand-500: #6A6FFF;
-  --brand-600: #4B3FE3;
-  --brand-700: #3F31C6;
+  --brand-50: #F0F6F2;
+  --brand-100: #E8F1EC;
+  --brand-200: #D2E3DA;
+  --brand-300: #B3D3C3;
+  --brand-400: #8ABCA4;
+  --brand-500: #5A9B7F;
+  --brand-600: #3E7D62;
+  --brand-700: #32684F;
 
   /* Grey scale */
   --brand-grey-50: #FAFAFA;
@@ -150,13 +150,13 @@
   /* ===== Element Plus Overrides ===== */
 
   /* Primary color → TraeWork brand */
-  --el-color-primary: #4B3FE3;
-  --el-color-primary-light-3: #6A6FFF;
-  --el-color-primary-light-5: #8894FF;
-  --el-color-primary-light-7: #AAB7FF;
-  --el-color-primary-light-8: #CFD8FF;
-  --el-color-primary-light-9: #E5EAFF;
-  --el-color-primary-dark-2: #3F31C6;
+  --el-color-primary: #3E7D62;
+  --el-color-primary-light-3: #5A9B7F;
+  --el-color-primary-light-5: #8ABCA4;
+  --el-color-primary-light-7: #B3D3C3;
+  --el-color-primary-light-8: #D2E3DA;
+  --el-color-primary-light-9: #E8F1EC;
+  --el-color-primary-dark-2: #32684F;
 
   /* Success */
   --el-color-success: #15A877;

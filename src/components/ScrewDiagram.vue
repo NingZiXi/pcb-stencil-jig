@@ -80,7 +80,7 @@ const screwCount = computed(() => screws.value.length);
           :y="stencilRect.y"
           :width="stencilRect.w"
           :height="stencilRect.h"
-          fill="rgba(75,63,227,0.12)"
+          fill="rgba(62,125,98,0.12)"
           stroke="var(--bg-brand)"
           stroke-width="1.5"
           stroke-dasharray="4,3"
