@@ -12,7 +12,7 @@ type PartName = "base" | "insert" | "cover";
 
 const store = useConfigStore();
 const canvasEl = ref<HTMLCanvasElement | null>(null);
-const activePart = ref<PartName>("base");
+const activePart = ref<PartName>("insert");
 const loading = ref(false);
 const errorMsg = ref<string | null>(null);
 
@@ -363,9 +363,9 @@ async function exportAllStl() {
   <div class="preview-wrapper">
     <div class="preview-header">
       <el-tabs v-model="activePart" class="part-tabs">
-        <!-- 按装配顺序从下到上:base=B面(底座,带螺柱) → insert=PCB托盘 → cover=A面(顶盖,带沉孔) -->
-        <el-tab-pane label="钢网夹 B 面 · 底座" name="base" />
+        <!-- 顺序:insert=PCB托盘(每块 PCB 专属,最常看) → base=B面底座 → cover=A面顶盖(可复用) -->
         <el-tab-pane label="PCB 托盘" name="insert" />
+        <el-tab-pane label="钢网夹 B 面 · 底座" name="base" />
         <el-tab-pane label="钢网夹 A 面 · 顶盖" name="cover" />
       </el-tabs>
       <el-button size="small" @click="refreshAll" :loading="refreshing">
