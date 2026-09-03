@@ -126,13 +126,14 @@ def build_base(p):
     window = window.moved(bd.Location((0, 0, -0.1)))
     base = base - window
 
-    # 3. 4 角螺柱(贯穿整个 base 高)
+    # 3. 4 角螺柱(凸出 base 顶面 post_h)
+    # 注意:build123d Cylinder 以中心定位(z∈[-h/2, h/2]),要凸出顶面需移到 base_h + post_h/2
     positions = compute_screw_positions(jig_size, spacing)
     posts = bd.Part()
     for (x, y) in positions:
         post = Cylinder(post_d / 2, post_h)
         post = post.moved(
-            bd.Location((x - jig_size / 2, y - jig_size / 2, base_h))
+            bd.Location((x - jig_size / 2, y - jig_size / 2, base_h + post_h / 2))
         )
         posts = posts + post
 
@@ -189,22 +190,23 @@ def build_insert(p):
     slot = slot.moved(bd.Location((0, 0, insert_h - pcb_slot_depth)))
     plate = plate - slot
 
-    # 5. 4 角螺丝过孔(在大柱子中心)
+    # 5. 4 角螺丝过孔(在大柱子中心,贯穿整个插板)
+    # Cylinder 居中定位:moved z=insert_h/2 → 孔贯穿 z∈[-0.1, insert_h+0.1]
     for sx, sy in [
         ( corner_offset,  corner_offset), ( corner_offset, -corner_offset),
         (-corner_offset,  corner_offset), (-corner_offset, -corner_offset),
     ]:
         hole = Cylinder((post_d + 0.3) / 2, insert_h + 0.2)
-        hole = hole.moved(bd.Location((sx, sy, -insert_h / 2)))
+        hole = hole.moved(bd.Location((sx, sy, insert_h / 2)))
         plate = plate - hole
 
-    # 4 棱边倒圆角(1.5mm,只选外壳 4 角的,不动柱子/槽)
+    # 4 棱边倒圆角(1.5mm,只选外壳 4 角的竖直棱,不动柱子/槽)
     with BuildPart() as bp:
         add(plate)
-        # 找中心最远(在外壳 4 角)且长度=8mm 的边
-        all_eights = [e for e in bp.edges() if abs(e.length - 8) < 0.5]
-        all_eights.sort(key=lambda e: -(e.center().X**2 + e.center().Y**2))
-        fillet_edges = all_eights[:4]
+        # 外壳 4 角竖直棱长度 = insert_h(中心最远的 4 条)
+        verticals = [e for e in bp.edges() if abs(e.length - insert_h) < 0.5]
+        verticals.sort(key=lambda e: -(e.center().X**2 + e.center().Y**2))
+        fillet_edges = verticals[:4]
         try:
             fillet(fillet_edges, radius=1.5)
         except Exception:
@@ -231,14 +233,15 @@ def build_cover(p):
     cover = cover - window
 
     # 3. 螺丝过孔 + 螺母沉孔
+    # Cylinder 居中定位:过孔 moved z=cover_h/2 贯穿;沉孔 moved z=cover_h-0.75 顶面开口
     positions = compute_screw_positions(jig_size, spacing)
     for (x, y) in positions:
         h = Cylinder(ts_clear_d / 2, cover_h + 0.2)
-        h = h.moved(bd.Location((x - jig_size / 2, y - jig_size / 2, -0.1)))
+        h = h.moved(bd.Location((x - jig_size / 2, y - jig_size / 2, cover_h / 2)))
         cover = cover - h
 
         cs = Cylinder(ts_head_d / 2, 1.5)
-        cs = cs.moved(bd.Location((x - jig_size / 2, y - jig_size / 2, cover_h - 1.5)))
+        cs = cs.moved(bd.Location((x - jig_size / 2, y - jig_size / 2, cover_h - 0.75)))
         cover = cover - cs
 
     return cover
