@@ -17,7 +17,6 @@ function buildScadParams() {
     pcb_pocket_clearance: c.pcbPocketClearance,
     pcb_outline_points: c.pcbOutlinePoints,
     stencil_size: c.stencilSize,
-    stencil_clamp_depth: c.stencilClampDepth,
     screw_spacing: c.screwSpacing,
     base_height: c.baseHeight,
     top_cover_height: c.topCoverHeight,
@@ -71,15 +70,13 @@ async function loadProject() {
       gerber_filename: string | null;
     }>("load_project", { path });
 
-    // 把后端字段映射回前端 camelCase
+    // 把后端字段映射回前端 camelCase(带默认值,兼容旧项目文件)
     const cfg = project.config;
     store.config.pcbSizeX = cfg.pcb_size_x;
     store.config.pcbSizeY = cfg.pcb_size_y;
     store.config.pcbThickness = cfg.pcb_thickness;
     store.config.pcbPocketClearance = cfg.pcb_pocket_clearance;
     store.config.stencilSize = cfg.stencil_size;
-    store.config.stencilSize = cfg.stencil_size;
-    store.config.stencilClampDepth = cfg.stencil_clamp_depth;
     store.config.screwSpacing = cfg.screw_spacing;
     store.config.baseHeight = cfg.base_height;
     store.config.topCoverHeight = cfg.top_cover_height;
@@ -88,7 +85,10 @@ async function loadProject() {
     store.config.thumbscrewHeadD = cfg.thumbscrew_head_d;
     store.config.thumbscrewClearanceD = cfg.thumbscrew_clearance_d;
     store.config.jigSize = cfg.jig_size;
-    store.config.jigSize = cfg.jig_size;
+    store.config.insertHeight = cfg.insert_height ?? 8;
+    store.config.pcbSupportRadius = cfg.pcb_support_radius ?? 5;
+    store.config.pcbSupportOffset = cfg.pcb_support_offset ?? 58;
+    store.config.pcbOutlinePoints = cfg.pcb_outline_points ?? [];
     store.config.gerberFilename = project.gerber_filename;
 
     ElMessage.success("项目已加载");

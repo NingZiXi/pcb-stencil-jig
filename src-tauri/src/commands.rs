@@ -19,7 +19,6 @@ pub struct ScadParams {
     #[serde(default)]
     pub pcb_outline_points: Vec<[f64; 2]>,
     pub stencil_size: f64,
-    pub stencil_clamp_depth: f64,
     pub screw_spacing: f64,
     pub base_height: f64,
     pub top_cover_height: f64,

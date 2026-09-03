@@ -31,7 +31,6 @@ struct PythonInput<'a> {
     pcb_pocket_clearance: f64,
     pcb_outline_points: &'a [[f64; 2]],
     stencil_size: f64,
-    stencil_clamp_depth: f64,
     screw_spacing: f64,
     base_height: f64,
     top_cover_height: f64,
@@ -96,8 +95,6 @@ async fn run_python(
         pcb_pocket_clearance: params.pcb_pocket_clearance,
         pcb_outline_points: &params.pcb_outline_points,
         stencil_size: params.stencil_size,
-        
-        stencil_clamp_depth: params.stencil_clamp_depth,
         screw_spacing: params.screw_spacing,
         base_height: params.base_height,
         top_cover_height: params.top_cover_height,

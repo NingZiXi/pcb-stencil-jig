@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, shallowRef } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { save } from "@tauri-apps/plugin-dialog";
+import { open } from "@tauri-apps/plugin-dialog";
+import { ElMessage } from "element-plus";
 import { useConfigStore } from "../stores/config";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
@@ -37,8 +38,9 @@ const stlCache = ref<Record<string, { bytes: number[]; paramsHash: string }>>({}
 function paramsHash() {
   const c = store.config;
   // 只 hash 跟几何相关的参数(避免无关改动触发重渲染)
+  // pcbOutlinePoints 用完整点列表:同点数的异形板框也要正确失效
   return JSON.stringify({
-    pcb: [c.pcbSizeX, c.pcbSizeY, c.pcbThickness, c.pcbPocketClearance, c.pcbOutlinePoints.length],
+    pcb: [c.pcbSizeX, c.pcbSizeY, c.pcbThickness, c.pcbPocketClearance, c.pcbOutlinePoints],
     stencil: [c.stencilSize, c.stencilSize],
     screw: [c.screwSpacing],
     dims: [c.baseHeight, c.topCoverHeight, c.postDiameter, c.postHeight, c.thumbscrewHeadD, c.thumbscrewClearanceD, c.jigSize, c.jigSize, c.insertHeight, c.pcbSupportRadius, c.pcbSupportOffset],
@@ -54,7 +56,6 @@ function buildScadParams() {
     pcb_pocket_clearance: c.pcbPocketClearance,
     pcb_outline_points: c.pcbOutlinePoints,
     stencil_size: c.stencilSize,
-    stencil_clamp_depth: c.stencilClampDepth,
     screw_spacing: c.screwSpacing,
     base_height: c.baseHeight,
     top_cover_height: c.topCoverHeight,
@@ -149,7 +150,7 @@ function disposeMesh() {
 async function renderCurrent() {
   if (!scene.value || !store.pythonDetected) {
     if (!store.pythonDetected) {
-      errorMsg.value = "OpenSCAD 未检测到,无法渲染";
+      errorMsg.value = "Python 环境未检测到,无法渲染";
     }
     return;
   }
@@ -317,45 +318,39 @@ onBeforeUnmount(() => {
   controls.value = null;
 });
 
-// 导出所有 3 个 STL 文件
+// 导出所有 3 个 STL 文件(选目录 → Rust export_stl 直接写盘)
 async function exportAllStl() {
   if (!store.pythonDetected) {
-    errorMsg.value = "OpenSCAD 未检测到,无法导出";
+    errorMsg.value = "Python 环境未检测到,无法导出";
     return;
   }
 
-  const targetDir = await save({
+  const targetDir = await open({
     title: "选择导出目录",
-    defaultPath: ".",
-    filters: [],
+    directory: true,
+    multiple: false,
   });
-  if (!targetDir) return;
+  if (!targetDir || Array.isArray(targetDir)) return;
 
   loading.value = true;
   errorMsg.value = null;
 
   try {
     const params = buildScadParams();
-    const parts: Array<{ name: PartName; filename: string }> = [
-      { name: "base", filename: "jig_base.stl" },
-      { name: "insert", filename: "jig_pcb_insert.stl" },
-      { name: "cover", filename: "jig_top_cover.stl" },
+    const dir = targetDir.replace(/[\\/]+$/, "");
+    const sep = dir.includes("\\") ? "\\" : "/";
+    const parts: Array<{ rust: string; filename: string }> = [
+      { rust: "base", filename: "jig_base.stl" },
+      { rust: "pcb_insert", filename: "jig_pcb_insert.stl" },
+      { rust: "top_cover", filename: "jig_top_cover.stl" },
     ];
 
     for (const p of parts) {
-      const bytes = await invoke<number[]>("generate_stl", {
-        params,
-        part: PART_TO_RUST[p.name],
-      });
-      // 写入文件
-      const { writeFile } = await import("@tauri-apps/plugin-fs");
-      const dir = targetDir.replace(/[/\\][^/\\]*$/, "");
-      const sep = targetDir.includes("\\") ? "\\" : "/";
       const fullPath = `${dir}${sep}${p.filename}`;
-      await writeFile(fullPath, new Uint8Array(bytes));
+      await invoke("export_stl", { params, part: p.rust, outputPath: fullPath });
     }
 
-    alert("导出完成!");
+    ElMessage.success(`已导出 3 个 STL 到 ${dir}`);
   } catch (e) {
     errorMsg.value = `导出失败: ${e instanceof Error ? e.message : String(e)}`;
   } finally {
@@ -368,9 +363,10 @@ async function exportAllStl() {
   <div class="preview-wrapper">
     <div class="preview-header">
       <el-tabs v-model="activePart" class="part-tabs">
+        <!-- 按装配顺序从下到上:base=B面(底座,带螺柱) → insert=PCB托盘 → cover=A面(顶盖,带沉孔) -->
+        <el-tab-pane label="钢网夹 B 面 · 底座" name="base" />
         <el-tab-pane label="PCB 托盘" name="insert" />
-        <el-tab-pane label="钢网夹 B面" name="cover" />
-        <el-tab-pane label="钢网夹 A面" name="base" />
+        <el-tab-pane label="钢网夹 A 面 · 顶盖" name="cover" />
       </el-tabs>
       <el-button size="small" @click="refreshAll" :loading="refreshing">
         刷新模型
@@ -390,7 +386,7 @@ async function exportAllStl() {
         <span>渲染中...</span>
       </div>
       <div v-if="!store.pythonDetected" class="overlay warning">
-        <span>⚠ OpenSCAD 未检测到,无法预览</span>
+        <span>⚠ Python 环境未检测到,无法预览</span>
       </div>
       <div v-if="errorMsg" class="overlay error">
         <span>{{ errorMsg }}</span>

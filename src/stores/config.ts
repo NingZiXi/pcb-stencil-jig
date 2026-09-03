@@ -16,7 +16,6 @@ export interface AppConfig {
 
   // 钢网参数(默认正方形,夹具按 stencil 尺寸生成)
   stencilSize: number;       // 单一值,正方形
-  stencilClampDepth: number;
 
   // 螺丝布局
   screwSpacing: number;
@@ -50,7 +49,6 @@ const DEFAULT: AppConfig = {
   pcbSizeY: 50,
   pcbThickness: 1.6,
   stencilSize: 100,
-  stencilClampDepth: 0.4,
   screwSpacing: 60,
   baseHeight: 8,
   topCoverHeight: 4,
