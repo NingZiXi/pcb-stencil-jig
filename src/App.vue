@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useI18n } from "vue-i18n";
+import zhCn from "element-plus/es/locale/lang/zh-cn";
+import enLocale from "element-plus/es/locale/lang/en";
 import { useConfigStore } from "./stores/config";
+import { useUiStore } from "./stores/ui";
 import ConfigForm from "./components/ConfigForm.vue";
 import ModelPreview from "./components/ModelPreview.vue";
 import GerberImport from "./components/GerberImport.vue";
@@ -13,7 +16,11 @@ import ProjectMenu from "./components/ProjectMenu.vue";
 import SettingsMenu from "./components/SettingsMenu.vue";
 
 const configStore = useConfigStore();
+const ui = useUiStore();
 const { t } = useI18n();
+
+// Element Plus 内置组件文案(弹窗按钮等)跟随语言切换
+const epLocale = computed(() => (ui.locale === "en" ? enLocale : zhCn));
 
 // ===== 自定义标题栏(decorations:false,与页眉融合) =====
 const appWindow = getCurrentWindow();
@@ -26,6 +33,13 @@ async function initWindowState() {
   unlistenMaximize = await appWindow.onResized(async () => {
     isMaximized.value = await appWindow.isMaximized();
   });
+}
+
+// 双击页眉空白 → 最大化/还原(Windows 标题栏惯例);交互控件上双击不触发
+function onHeaderDblClick(e: MouseEvent) {
+  const target = e.target as HTMLElement;
+  if (target.closest("button, a, input, [role='button']")) return;
+  appWindow.toggleMaximize();
 }
 
 onMounted(initWindowState);
@@ -204,8 +218,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <el-config-provider :locale="epLocale">
   <div class="app-shell">
-    <header class="app-header" data-tauri-drag-region>
+    <header class="app-header" data-tauri-drag-region @dblclick="onHeaderDblClick">
       <div class="header-brand" data-tauri-drag-region>
         <!-- Logo:板框四孔(夹具俯视图:板框 + 四角螺丝孔 + 钢网窗口) -->
         <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true" data-tauri-drag-region>
@@ -229,7 +244,7 @@ onBeforeUnmount(() => {
       <div class="window-controls">
         <button
           class="win-btn"
-          title="最小化"
+          :title="t('win.minimize')"
           @click="appWindow.minimize()"
         >
           <svg viewBox="0 0 10 10" width="10" height="10">
@@ -238,7 +253,7 @@ onBeforeUnmount(() => {
         </button>
         <button
           class="win-btn"
-          :title="isMaximized ? '还原' : '最大化'"
+          :title="isMaximized ? t('win.restore') : t('win.maximize')"
           @click="appWindow.toggleMaximize()"
         >
           <svg v-if="isMaximized" viewBox="0 0 10 10" width="10" height="10">
@@ -251,7 +266,7 @@ onBeforeUnmount(() => {
         </button>
         <button
           class="win-btn win-close"
-          title="关闭"
+          :title="t('win.close')"
           @click="appWindow.close()"
         >
           <svg viewBox="0 0 10 10" width="10" height="10">
@@ -368,6 +383,7 @@ onBeforeUnmount(() => {
       </section>
     </main>
   </div>
+  </el-config-provider>
 </template>
 
 <style scoped>

@@ -21,6 +21,12 @@ export default {
     about: "About",
     aboutTitle: "About this project",
   },
+  win: {
+    minimize: "Minimize",
+    maximize: "Maximize",
+    restore: "Restore",
+    close: "Close",
+  },
   about: {
     desc: "Drop a Gerber ZIP exported from JLCPCB / EasyEDA and instantly generate the three 3D-printable stencil jig parts (base / PCB tray / top cover).",
     openSource: "Open Source",

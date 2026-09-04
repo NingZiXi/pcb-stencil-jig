@@ -21,6 +21,12 @@ export default {
     about: "关于",
     aboutTitle: "关于本项目",
   },
+  win: {
+    minimize: "最小化",
+    maximize: "最大化",
+    restore: "还原",
+    close: "关闭",
+  },
   about: {
     desc: "从 JLCPCB / 嘉立创EDA 导出的 Gerber ZIP,一键生成可 3D 打印的锡膏刷钢网定位夹具三件套(底座 / PCB 托盘 / 顶盖)。",
     openSource: "开源项目",
