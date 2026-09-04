@@ -18,6 +18,18 @@ export interface GerberFormat {
   zero: "L" | "T";
 }
 
+/** 图层变换(Gerber %LM/%LR/%LS,对后续坐标生效,可中途切换) */
+export interface LayerTransform {
+  /** %LMX:关于 X 轴镜像(y → -y) */
+  mx: boolean;
+  /** %LMY:关于 Y 轴镜像(x → -x) */
+  my: boolean;
+  /** %LR:旋转角度(度,逆时针) */
+  rot: number;
+  /** %LS:缩放 */
+  scale: number;
+}
+
 /** 解析出的单个 Gerber 命令 */
 export interface ParsedCommand {
   type: string;
@@ -30,6 +42,8 @@ export interface ParsedCommand {
   y?: number;
   i?: number;
   j?: number;
+  /** 本命令生效时的图层变换(恒等时省略) */
+  tf?: LayerTransform;
   raw?: string;
   [key: string]: unknown;
 }
@@ -62,6 +76,16 @@ export function parseGerber(text: string): ParseResult {
   let prevX = 0;
   let prevY = 0;
 
+  // 图层变换状态(%LM/%LR/%LS 可中途切换,快照到每条命令上)
+  let tfMx = false;
+  let tfMy = false;
+  let tfRot = 0;
+  let tfScale = 1;
+  const tfSnapshot = (): LayerTransform | undefined =>
+    tfMx || tfMy || tfRot !== 0 || tfScale !== 1
+      ? { mx: tfMx, my: tfMy, rot: tfRot, scale: tfScale }
+      : undefined;
+
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line || line.startsWith("G04")) continue;
@@ -75,6 +99,22 @@ export function parseGerber(text: string): ParseResult {
     const moMatch = rawLine.match(/%MO(IN|MM)\*%/i);
     if (moMatch) {
       units = moMatch[1].toUpperCase() === "MM" ? "mm" : "in";
+    }
+
+    // 图层变换(同样在原始行上匹配;无参数 = 重置为恒等)
+    const lmMatch = rawLine.match(/%LM(XY|X|Y)?\*%/i);
+    if (lmMatch) {
+      const m = (lmMatch[1] || "").toUpperCase();
+      tfMx = m.includes("X");
+      tfMy = m.includes("Y");
+    }
+    const lrMatch = rawLine.match(/%LR(-?[\d.]+)?\*%/i);
+    if (lrMatch) {
+      tfRot = lrMatch[1] ? parseFloat(lrMatch[1]) : 0;
+    }
+    const lsMatch = rawLine.match(/%LS(-?[\d.]+)?\*%/i);
+    if (lsMatch) {
+      tfScale = lsMatch[1] ? parseFloat(lsMatch[1]) : 1;
     }
 
     // 更新弧线模式(G02=CW, G03=CCW, G01=直线)
@@ -104,6 +144,7 @@ export function parseGerber(text: string): ParseResult {
         isArc: false,
         x,
         y,
+        tf: tfSnapshot(),
         raw: line,
       });
     } else if (/D03\*/.test(line)) {
@@ -123,6 +164,7 @@ export function parseGerber(text: string): ParseResult {
         y,
         i: hasArcOffset ? i : undefined,
         j: hasArcOffset ? j : undefined,
+        tf: tfSnapshot(),
         raw: line,
       });
     }
@@ -154,6 +196,30 @@ export function extractOutline(text: string): GerberOutline {
   let prevX = 0;
   let prevY = 0;
 
+  // 图层变换:对输出的 mm 坐标应用 缩放 → 镜像 → 旋转。
+  // 弧线在原生空间线性化后再统一变换(线性映射保圆弧,镜像翻转弧向自动正确)
+  const applyTf = (
+    x: number,
+    y: number,
+    tf?: { mx: boolean; my: boolean; rot: number; scale: number }
+  ): [number, number] => {
+    if (!tf) return [x, y];
+    let nx = x * tf.scale;
+    let ny = y * tf.scale;
+    if (tf.mx) ny = -ny; // %LMX:关于 X 轴镜像
+    if (tf.my) nx = -nx; // %LMY:关于 Y 轴镜像
+    if (tf.rot) {
+      const a = (tf.rot * Math.PI) / 180;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      const rx = nx * c - ny * s;
+      const ry = nx * s + ny * c;
+      nx = rx;
+      ny = ry;
+    }
+    return [nx, ny];
+  };
+
   for (const cmd of commands) {
     if (cmd.type !== "op") continue;
 
@@ -161,7 +227,7 @@ export function extractOutline(text: string): GerberOutline {
     const currY = cmd.y as number;
 
     if (cmd.op === "move") {
-      rawPoints.push([toMm(currX), toMm(currY)]);
+      rawPoints.push(applyTf(toMm(currX), toMm(currY), cmd.tf as never));
       // move 后,prevX/prevY 更新到新位置
       prevX = currX;
       prevY = currY;
@@ -180,7 +246,7 @@ export function extractOutline(text: string): GerberOutline {
         const ccw = cmd.ccw === true;
 
         if (radius < 1e-9) {
-          rawPoints.push([x, y]);
+          rawPoints.push(applyTf(x, y, cmd.tf as never));
           continue;
         }
 
@@ -203,11 +269,13 @@ export function extractOutline(text: string): GerberOutline {
 
         for (let s = 1; s <= segs; s++) {
           const a = startAngle + stepAngle * s;
-          rawPoints.push([cx + radius * Math.cos(a), cy + radius * Math.sin(a)]);
+          rawPoints.push(
+            applyTf(cx + radius * Math.cos(a), cy + radius * Math.sin(a), cmd.tf as never)
+          );
         }
         arcs++;
       } else {
-        rawPoints.push([x, y]);
+        rawPoints.push(applyTf(x, y, cmd.tf as never));
       }
       // 无论直线还是弧线,interpolate 后 prevX/prevY 更新到当前点(给下一条命令用)
       prevX = currX;
