@@ -156,6 +156,13 @@ pub async fn export_stl(
     Ok(output_path)
 }
 
+/// 把字节写入指定路径(供前端把缓存的 STL bytes 直接落盘,避免重复生成)
+#[tauri::command]
+pub async fn write_file_bytes(path: String, bytes: Vec<u8>) -> Result<(), AppError> {
+    std::fs::write(&path, bytes)
+        .map_err(|e| AppError::Io(format!("写入文件失败 {}: {}", path, e)))
+}
+
 /// 项目文件 schema
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectFile {

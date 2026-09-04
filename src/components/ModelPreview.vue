@@ -311,27 +311,30 @@ const allParts: PartName[] = ["base", "insert", "cover"];
 
 async function preloadAllParts() {
   const hash = paramsHash();
-  for (const part of allParts) {
-    // 已缓存或正在加载的跳过
-    if (stlCache.value[part]?.paramsHash === hash) continue;
-    if (preloading.value.has(part)) continue;
+  // 并行生成 3 个部件(spawn + build123d 导入开销重叠,总耗时约等于单件)
+  await Promise.all(
+    allParts.map(async (part) => {
+      // 已缓存或正在加载的跳过
+      if (stlCache.value[part]?.paramsHash === hash) return;
+      if (preloading.value.has(part)) return;
 
-    preloading.value.add(part);
-    try {
-      const rustPart = PART_TO_RUST[part];
-      const params = buildScadParams();
-      const bytes = await invoke<number[]>("generate_stl", { params, part: rustPart });
-      stlCache.value = {
-        ...stlCache.value,
-        [part]: { bytes, paramsHash: hash },
-      };
-      console.log(`[preload] ${part} ready (${(bytes.length / 1024).toFixed(0)} KB)`);
-    } catch (e) {
-      console.warn(`[preload] ${part} failed:`, e);
-    } finally {
-      preloading.value.delete(part);
-    }
-  }
+      preloading.value.add(part);
+      try {
+        const rustPart = PART_TO_RUST[part];
+        const params = buildScadParams();
+        const bytes = await invoke<number[]>("generate_stl", { params, part: rustPart });
+        stlCache.value = {
+          ...stlCache.value,
+          [part]: { bytes, paramsHash: hash },
+        };
+        console.log(`[preload] ${part} ready (${(bytes.length / 1024).toFixed(0)} KB)`);
+      } catch (e) {
+        console.warn(`[preload] ${part} failed:`, e);
+      } finally {
+        preloading.value.delete(part);
+      }
+    })
+  );
 }
 
 // 手动刷新:清缓存 + 重新生成所有 3 个部件
@@ -393,17 +396,24 @@ async function exportAllStl() {
 
   try {
     const params = buildScadParams();
+    const hash = paramsHash();
     const dir = targetDir.replace(/[\\/]+$/, "");
     const sep = dir.includes("\\") ? "\\" : "/";
-    const parts: Array<{ rust: string; filename: string }> = [
-      { rust: "base", filename: "jig_base.stl" },
-      { rust: "pcb_insert", filename: "jig_pcb_insert.stl" },
-      { rust: "top_cover", filename: "jig_top_cover.stl" },
+    const parts: Array<{ name: PartName; rust: string; filename: string }> = [
+      { name: "base", rust: "base", filename: "jig_base.stl" },
+      { name: "insert", rust: "pcb_insert", filename: "jig_pcb_insert.stl" },
+      { name: "cover", rust: "top_cover", filename: "jig_top_cover.stl" },
     ];
 
     for (const p of parts) {
       const fullPath = `${dir}${sep}${p.filename}`;
-      await invoke("export_stl", { params, part: p.rust, outputPath: fullPath });
+      // 缓存命中(当前参数):bytes 直接落盘,跳过 Python 重新生成
+      const cached = stlCache.value[p.name];
+      if (cached && cached.paramsHash === hash) {
+        await invoke("write_file_bytes", { path: fullPath, bytes: cached.bytes });
+      } else {
+        await invoke("export_stl", { params, part: p.rust, outputPath: fullPath });
+      }
     }
 
     ElMessage.success(t("preview.exported", { dir }));

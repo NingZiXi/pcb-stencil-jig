@@ -64,13 +64,9 @@ fn resolve_python(configured: Option<&str>) -> Option<String> {
     openscad_detect::detect_python()
 }
 
-/// 工作目录:ASCII 路径避免奇怪问题
+/// 工作目录:系统临时目录下,每次生成一个独立子目录
 fn work_dir() -> Result<PathBuf, AppError> {
-    let base = if cfg!(target_os = "windows") {
-        PathBuf::from(r"C:\pcb-jig-work")
-    } else {
-        std::env::temp_dir().join("pcb-jig-work")
-    };
+    let base = std::env::temp_dir().join("pcb-jig-work");
     fs::create_dir_all(&base).map_err(|e| AppError::Io(format!("创建工作目录失败: {}", e)))?;
     let sub = base.join(format!("jig-{}", uuid::Uuid::new_v4()));
     fs::create_dir_all(&sub).map_err(|e| AppError::Io(format!("创建工作子目录失败: {}", e)))?;
@@ -189,18 +185,23 @@ pub async fn render_to_stl(
     let work = work_dir()?;
     let output_stl = work.join("jig.stl");
 
-    run_python(&python, params, part, &work, &output_stl, &script_path).await?;
+    // 生成 + 读取包成一个结果;无论成功/失败/超时都清理工作目录(修复失败路径泄漏残留目录)
+    let result: Result<Vec<u8>, AppError> = async {
+        run_python(&python, params, part, &work, &output_stl, &script_path).await?;
 
-    let mut file = tokio::fs::File::open(&output_stl)
-        .await
-        .map_err(|e| AppError::Io(format!("读取 STL 失败: {}", e)))?;
-    let mut bytes = Vec::new();
-    file.read_to_end(&mut bytes)
-        .await
-        .map_err(|e| AppError::Io(format!("读取 STL 失败: {}", e)))?;
+        let mut file = tokio::fs::File::open(&output_stl)
+            .await
+            .map_err(|e| AppError::Io(format!("读取 STL 失败: {}", e)))?;
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)
+            .await
+            .map_err(|e| AppError::Io(format!("读取 STL 失败: {}", e)))?;
+        Ok(bytes)
+    }
+    .await;
 
     let _ = fs::remove_dir_all(&work);
-    Ok(bytes)
+    result
 }
 
 /// 把单个部件渲染到指定路径(给导出按钮用)
@@ -224,10 +225,14 @@ pub async fn render_to_file(
     let work = work_dir()?;
     let intermediate = work.join("jig.stl");
 
-    run_python(&python, params, part, &work, &intermediate, &script_path).await?;
+    // 同上:失败/超时也清理工作目录
+    let result: Result<(), AppError> = async {
+        run_python(&python, params, part, &work, &intermediate, &script_path).await?;
+        fs::copy(&intermediate, output_path).map_err(|e| AppError::Io(e.to_string()))?;
+        Ok(())
+    }
+    .await;
 
-    // 复制到目标路径
-    fs::copy(&intermediate, output_path).map_err(|e| AppError::Io(e.to_string()))?;
     let _ = fs::remove_dir_all(&work);
-    Ok(())
+    result
 }
