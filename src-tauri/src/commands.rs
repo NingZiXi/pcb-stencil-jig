@@ -48,6 +48,16 @@ pub enum Part {
     TopCover,
 }
 
+impl Part {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Part::Base => "base",
+            Part::PcbInsert => "insert",
+            Part::TopCover => "cover",
+        }
+    }
+}
+
 const STORE_FILE: &str = "settings.json";
 const KEY_PYTHON_PATH: &str = "python_path";
 

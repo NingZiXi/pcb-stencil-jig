@@ -254,20 +254,93 @@ def build_part(p, part_name):
     return builders[part_name](p)
 
 
+def generate_to_file(params, part_name, output_path, fmt="stl"):
+    """生成单个部件并导出到 output_path(CLI 与 server 模式共用)"""
+    part = build_part(params, part_name)
+    # 旋转:让 build123d 的 Z-up 变 three.js 的 Y-up 躺平
+    part = part.rotate(bd.Axis.X, -90)
+
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    if fmt == "stl":
+        export_stl(part, str(output))
+    else:
+        export_step(part, str(output))
+    return output
+
+
+def serve():
+    """常驻服务模式:stdin 读 JSON 请求行,stdout 回 JSON 响应行。
+
+    协议(每行一个 JSON 对象):
+      请求  {"id": 1, "cmd": "ping"}
+            {"id": 2, "cmd": "generate", "part": "base", "format": "stl", "params": {...}}
+            {"id": 3, "cmd": "shutdown"}
+      响应  {"id": 1, "ok": true, "pong": true}
+            {"id": 2, "ok": true, "path": "C:/.../jig-xxx.stl"}
+            {"id": 2, "ok": false, "error": "..."}
+
+    stdin 关闭(父进程退出)即自然退出。stderr 仅写日志,不参与协议。
+    """
+    import tempfile
+    import uuid as _uuid
+
+    def respond(obj):
+        sys.stdout.write(json.dumps(obj, ensure_ascii=False) + "\n")
+        sys.stdout.flush()
+
+    print("[server] ready", file=sys.stderr)
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        rid = None
+        try:
+            req = json.loads(line)
+            rid = req.get("id")
+            cmd = req.get("cmd")
+
+            if cmd == "ping":
+                respond({"id": rid, "ok": True, "pong": True})
+            elif cmd == "generate":
+                fmt = req.get("format", "stl")
+                out = Path(tempfile.gettempdir()) / f"jig-{_uuid.uuid4()}.{fmt}"
+                generate_to_file(req["params"], req["part"], out, fmt)
+                respond({"id": rid, "ok": True, "path": str(out)})
+            elif cmd == "shutdown":
+                respond({"id": rid, "ok": True})
+                break
+            else:
+                respond({"id": rid, "ok": False, "error": f"unknown cmd: {cmd}"})
+        except Exception as e:  # noqa: BLE001 - 协议层兜底,单请求失败不杀服务
+            respond({"id": rid, "ok": False, "error": f"{type(e).__name__}: {e}"})
+    print("[server] stdin closed, exiting", file=sys.stderr)
+
+
 def main():
     parser = argparse.ArgumentParser(description="PCB 钢网夹具生成器")
-    parser.add_argument("--input", required=True, help="JSON params 文件路径")
-    parser.add_argument("--output", required=True, help="输出 STL/STEP 路径")
+    parser.add_argument("--input", help="JSON params 文件路径")
+    parser.add_argument("--output", help="输出 STL/STEP 路径")
     parser.add_argument(
         "--part",
-        required=True,
         choices=["base", "insert", "cover"],
         help="生成哪个部件",
     )
     parser.add_argument(
         "--format", default="stl", choices=["stl", "step"], help="输出格式"
     )
+    parser.add_argument(
+        "--server", action="store_true", help="常驻服务模式(stdin/stdout JSON 协议)"
+    )
     args = parser.parse_args()
+
+    if args.server:
+        serve()
+        return
+
+    if not (args.input and args.output and args.part):
+        parser.error("--input/--output/--part 为必填(或使用 --server)")
 
     with open(args.input, "r", encoding="utf-8") as f:
         params = json.load(f)
@@ -281,19 +354,7 @@ def main():
         file=sys.stderr,
     )
 
-    part = build_part(params, args.part)
-
-    # 旋转:让 build123d 的 Z-up 变 three.js 的 Y-up 躺平
-    part = part.rotate(bd.Axis.X, -90)
-
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-
-    if args.format == "stl":
-        export_stl(part, str(output))
-    else:
-        export_step(part, str(output))
-
+    output = generate_to_file(params, args.part, args.output, args.format)
     print(f"[ok] {output}", file=sys.stderr)
 
 
