@@ -74,6 +74,8 @@ pub struct EngineStatus {
     pub deps_ok: bool,
     /// 缺失的依赖名列表
     pub missing: Vec<String>,
+    /// 是否使用随应用打包的内置引擎
+    pub bundled: bool,
 }
 
 /// 用 find_spec 检查依赖(只查不导入,秒回;真 import build123d 要 ~5s)
@@ -102,7 +104,7 @@ fn check_deps_blocking(python: &str) -> Vec<String> {
     }
 }
 
-/// 查询引擎状态:用户配置 > PATH > 标准位置;找到 python 后检查依赖
+/// 查询引擎状态:用户配置 > 内置引擎 > 系统搜索;找到 python 后检查依赖
 #[tauri::command]
 pub async fn get_engine_status(app: AppHandle) -> Result<EngineStatus, AppError> {
     let configured = app
@@ -112,9 +114,14 @@ pub async fn get_engine_status(app: AppHandle) -> Result<EngineStatus, AppError>
         .and_then(|v| v.as_str().map(String::from))
         .filter(|s| !s.is_empty() && std::path::Path::new(s).exists());
 
+    let bundled = scad::bundled_python(Some(&app));
+
+    // 优先级与生成路径一致:用户配置 > 内置 > 系统
     let python = configured
         .clone()
+        .or_else(|| bundled.clone())
         .or_else(openscad_detect::detect_python);
+    let using_bundled = configured.is_none() && python == bundled && bundled.is_some();
 
     match python {
         Some(p) => {
@@ -126,12 +133,14 @@ pub async fn get_engine_status(app: AppHandle) -> Result<EngineStatus, AppError>
                 python_path: Some(p),
                 deps_ok: missing.is_empty(),
                 missing,
+                bundled: using_bundled,
             })
         }
         None => Ok(EngineStatus {
             python_path: None,
             deps_ok: false,
             missing: Vec::new(),
+            bundled: false,
         }),
     }
 }
@@ -293,7 +302,7 @@ pub async fn generate_stl(
         .and_then(|v| v.as_str().map(String::from))
         .filter(|s| !s.is_empty());
 
-    scad::render_to_stl(configured.as_deref(), &params, part).await
+    scad::render_to_stl(&app, configured.as_deref(), &params, part).await
 }
 
 /// 把单个部件渲染到指定路径(供前端导出 STL 文件)
@@ -312,7 +321,7 @@ pub async fn export_stl(
         .filter(|s| !s.is_empty());
 
     let path = PathBuf::from(&output_path);
-    scad::render_to_file(configured.as_deref(), &params, part, &path).await?;
+    scad::render_to_file(&app, configured.as_deref(), &params, part, &path).await?;
     Ok(output_path)
 }
 

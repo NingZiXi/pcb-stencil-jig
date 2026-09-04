@@ -63,13 +63,11 @@
 ### 环境要求
 
 - **Node.js 20+**
-
 - **Rust 1.77+**(`rustup install stable`)
-
-- **Python 3.10+**(生成 CAD 模型的引擎)
+- **Python 3.10+**(开发模式用系统 Python;发布版自带内置引擎,见下)
 
 ```bash
-# 安装 Python 依赖
+# 安装 Python 依赖(开发模式)
 pip install -r python/requirements.txt   # build123d shapely numpy
 
 # 前端依赖 + 开发运行
@@ -77,15 +75,20 @@ npm install
 npm run tauri:dev
 ```
 
-首次启动会自动探测 Python。如果装在非标准位置,在左侧「Python + build123d 环境」卡片手动指定 `python.exe`,路径会持久化。
+开发模式下应用自动探测 Python(PATH / 常见安装位置),也可在「Python + build123d」卡片手动指定;若缺依赖,卡片提供一键安装(清华镜像)。
 
-### 打包发布
+### 打包发布(内置 CAD 引擎,用户零配置)
+
+发布包自带完整的 Python + CAD 依赖运行时,最终用户**无需安装任何环境**:
 
 ```bash
-npm run tauri:build
+npm run build:python-env   # 构建内置引擎(python.org 嵌入式发行版 + 依赖,~200MB 下载)
+npm run tauri:build        # 打包(内置引擎收进 resources,NSIS 压缩后安装包 ~+400MB)
 ```
 
-生成 `.msi` 和 `.exe` 安装包在 `src-tauri/target/release/bundle/`。
+产物 `.msi` / `.exe` 在 `src-tauri/target/release/bundle/`。
+
+内置引擎的解析优先级:用户手动配置 > 内置引擎 > 系统 Python——开发者机器上已配置的 Python 不受影响。
 
 ## 螺丝布局算法
 

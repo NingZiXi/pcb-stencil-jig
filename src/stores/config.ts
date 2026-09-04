@@ -140,6 +140,7 @@ export const useConfigStore = defineStore("config", () => {
   const depsMissing = ref<string[]>([]);
   const pythonError = ref<string | null>(null);
   const engineLoading = ref(false);
+  const bundledEngine = ref(false); // 使用随应用打包的内置引擎
 
   async function detectPython() {
     pythonError.value = null;
@@ -149,15 +150,18 @@ export const useConfigStore = defineStore("config", () => {
         python_path: string | null;
         deps_ok: boolean;
         missing: string[];
+        bundled: boolean;
       }>("get_engine_status");
       pythonPath.value = st.python_path;
       depsMissing.value = st.missing ?? [];
+      bundledEngine.value = !!st.bundled;
       // 只有 python + 依赖全齐才算就绪(否则常驻 server 起不来)
       pythonDetected.value = !!st.python_path && st.deps_ok;
     } catch (e) {
       pythonPath.value = null;
       pythonDetected.value = false;
       depsMissing.value = [];
+      bundledEngine.value = false;
       pythonError.value = e instanceof Error ? e.message : String(e);
     } finally {
       engineLoading.value = false;
@@ -172,6 +176,7 @@ export const useConfigStore = defineStore("config", () => {
     depsMissing,
     pythonError,
     engineLoading,
+    bundledEngine,
     applyGerberSize,
     reset,
     detectPython,

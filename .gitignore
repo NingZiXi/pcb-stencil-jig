@@ -16,6 +16,10 @@ dist-ssr
 src-tauri/target
 src-tauri/gen
 
+# 内置 Python 引擎环境(scripts/build-python-env.ps1 生成,~700MB,不入库)
+src-tauri/resources/python-env/*
+!src-tauri/resources/python-env/.gitkeep
+
 # Python
 __pycache__/
 *.pyc

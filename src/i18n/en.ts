@@ -95,6 +95,8 @@ export default {
     // Status
     ready: "Engine ready",
     readyHint: "CAD engine is ready — you can generate models now",
+    readyHintBundled: "Using the bundled CAD engine — no setup needed",
+    bundled: "Bundled",
     missingDeps: "Missing CAD dependencies",
     missingDepsHint: "Python found, but these required packages are missing:",
     noPython: "Python not found",

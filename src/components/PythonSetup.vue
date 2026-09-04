@@ -115,8 +115,11 @@ function openPythonDownload() {
           <path d="M5 8.2l2 2L11 5.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
         <div class="ok-text">
-          <span class="ok-title">{{ t('python.ready') }}</span>
-          <span class="ok-hint">{{ t('python.readyHint') }}</span>
+          <span class="ok-title">
+            {{ t('python.ready') }}
+            <span v-if="store.bundledEngine" class="bundled-tag">{{ t('python.bundled') }}</span>
+          </span>
+          <span class="ok-hint">{{ store.bundledEngine ? t('python.readyHintBundled') : t('python.readyHint') }}</span>
         </div>
       </div>
       <div class="path-row">
@@ -239,6 +242,18 @@ function openPythonDownload() {
   font-size: 13px;
   font-weight: var(--font-weight-strong);
   color: var(--text-default);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bundled-tag {
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--status-success-surface-l1);
+  color: var(--status-success-default);
 }
 
 .ok-hint {

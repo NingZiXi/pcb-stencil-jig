@@ -95,6 +95,8 @@ export default {
     // 状态
     ready: "引擎就绪",
     readyHint: "CAD 引擎已就绪,可以直接生成模型",
+    readyHintBundled: "使用随应用打包的内置 CAD 引擎,无需任何配置",
+    bundled: "内置",
     missingDeps: "缺少 CAD 依赖",
     missingDepsHint: "找到 Python,但缺少以下依赖(生成模型必需):",
     noPython: "未找到 Python",

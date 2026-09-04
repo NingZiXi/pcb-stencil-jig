@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex as StdMutex, OnceLock};
+use tauri::{AppHandle, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::{Mutex, oneshot};
@@ -169,14 +170,47 @@ impl Server {
 // 公共 API
 // ---------------------------------------------------------------------------
 
-/// 解析 Python 可执行文件路径:已配置 > 系统搜索
-fn resolve_python(configured: Option<&str>) -> Option<String> {
+/// 内置 Python 引擎(随安装包分发,用户零配置)
+/// 查找顺序:resource 目录(打包)→ src-tauri/resources(开发)→ exe 旁
+pub fn bundled_python(app: Option<&AppHandle>) -> Option<String> {
+    if let Some(app) = app {
+        if let Ok(dir) = app.path().resource_dir() {
+            for rel in ["python-env", "resources/python-env"] {
+                let p = dir.join(rel).join("python.exe");
+                if p.exists() {
+                    return Some(p.to_string_lossy().into_owned());
+                }
+            }
+        }
+    }
+    // 开发模式:resources 原地(不经 resource_dir)
+    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("python-env")
+        .join("python.exe");
+    if dev.exists() {
+        return Some(dev.to_string_lossy().into_owned());
+    }
+    // 兜底:exe 同级(便携部署)
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let p = dir.join("python-env").join("python.exe");
+            if p.exists() {
+                return Some(p.to_string_lossy().into_owned());
+            }
+        }
+    }
+    None
+}
+
+/// 解析 Python 可执行文件路径:用户配置 > 内置引擎 > 系统搜索
+fn resolve_python(app: Option<&AppHandle>, configured: Option<&str>) -> Option<String> {
     if let Some(p) = configured {
         if !p.is_empty() && std::path::Path::new(p).exists() {
             return Some(p.to_string());
         }
     }
-    openscad_detect::detect_python()
+    bundled_python(app).or_else(openscad_detect::detect_python)
 }
 
 /// 项目根目录(tauri dev 时 cwd 在 src-tauri,用 CARGO_MANIFEST_DIR 上溯一层)
@@ -189,12 +223,13 @@ fn project_root() -> PathBuf {
 
 /// 发送 generate 请求(必要时拉起 server);传输失败时杀掉 server,下次请求重新拉起
 async fn request_generate(
+    app: &AppHandle,
     configured_python: Option<&str>,
     params: &ScadParams,
     part: Part,
     format: &str,
 ) -> Result<ServerResponse, AppError> {
-    let python = resolve_python(configured_python).ok_or_else(|| {
+    let python = resolve_python(Some(app), configured_python).ok_or_else(|| {
         AppError::OpenScadNotFound(
             "未找到 Python。请先安装 Python 3.10+ 并 `pip install build123d shapely numpy`".into(),
         )
@@ -240,11 +275,12 @@ async fn request_generate(
 
 /// 渲染单个部件为 STL 字节(供前端预览)
 pub async fn render_to_stl(
+    app: &AppHandle,
     configured_python: Option<&str>,
     params: &ScadParams,
     part: Part,
 ) -> Result<Vec<u8>, AppError> {
-    let resp = request_generate(configured_python, params, part, "stl").await?;
+    let resp = request_generate(app, configured_python, params, part, "stl").await?;
     if !resp.ok {
         return Err(AppError::ScadFailed(format!(
             "Python 生成失败: {}",
@@ -264,6 +300,7 @@ pub async fn render_to_stl(
 
 /// 把单个部件渲染到指定路径(供导出)
 pub async fn render_to_file(
+    app: &AppHandle,
     configured_python: Option<&str>,
     params: &ScadParams,
     part: Part,
@@ -274,7 +311,7 @@ pub async fn render_to_file(
         .and_then(|s| s.to_str())
         .unwrap_or("stl");
 
-    let resp = request_generate(configured_python, params, part, ext).await?;
+    let resp = request_generate(app, configured_python, params, part, ext).await?;
     if !resp.ok {
         return Err(AppError::ScadFailed(format!(
             "Python 生成失败: {}",
