@@ -200,3 +200,97 @@ describe("图层变换 LM/LR/LS", () => {
     expect(outline.bbox.maxX).toBeCloseTo(20, 2);
   });
 });
+
+describe("多轮廓(外框 + 内孔)", () => {
+  // 外框 (0,0)-(50,40) mm + 内孔 (10,10)-(20,30) mm,places=[2,4]
+  const MULTI = `G04 inner hole board*
+%FSLAX24Y24*%
+%MOMM*%
+G01*
+X0Y0D02*
+X500000Y0D01*
+X500000Y400000D01*
+X0Y400000D01*
+X0Y0D01*
+X100000Y100000D02*
+X200000Y100000D01*
+X200000Y300000D01*
+X100000Y300000D01*
+X100000Y100000D01*
+M02*
+`;
+
+  it("外框 = 最大面积轮廓,bbox 不受内孔影响", () => {
+    const outline = extractOutline(MULTI);
+    expect(outline.bbox.minX).toBeCloseTo(0, 3);
+    expect(outline.bbox.maxX).toBeCloseTo(50, 3);
+    expect(outline.bbox.minY).toBeCloseTo(0, 3);
+    expect(outline.bbox.maxY).toBeCloseTo(40, 3);
+  });
+
+  it("内孔被单独提取(1 条,坐标正确)", () => {
+    const outline = extractOutline(MULTI);
+    expect(outline.holes).toHaveLength(1);
+    const hole = outline.holes[0];
+    // 内孔 bbox:(10,10)-(20,30)
+    const xs = hole.map((p) => p[0]);
+    const ys = hole.map((p) => p[1]);
+    expect(Math.min(...xs)).toBeCloseTo(10, 3);
+    expect(Math.max(...xs)).toBeCloseTo(20, 3);
+    expect(Math.min(...ys)).toBeCloseTo(10, 3);
+    expect(Math.max(...ys)).toBeCloseTo(30, 3);
+    // 已闭合(首尾相同)
+    expect(hole[0]).toEqual(hole[hole.length - 1]);
+  });
+
+  it("内孔写在外框之前也能正确分类(与顺序无关)", () => {
+    const reordered = `G04 hole first*
+%FSLAX24Y24*%
+%MOMM*%
+G01*
+X100000Y100000D02*
+X200000Y100000D01*
+X200000Y300000D01*
+X100000Y300000D01*
+X100000Y100000D01*
+X0Y0D02*
+X500000Y0D01*
+X500000Y400000D01*
+X0Y400000D01*
+X0Y0D01*
+M02*
+`;
+    const outline = extractOutline(reordered);
+    expect(outline.points.length).toBeGreaterThanOrEqual(5);
+    expect(outline.holes).toHaveLength(1);
+    expect(outline.bbox.maxX).toBeCloseTo(50, 3);
+  });
+
+  it("外框之外的独立轮廓被忽略(拼板场景)", () => {
+    const disjoint = `G04 two boards*
+%FSLAX24Y24*%
+%MOMM*%
+G01*
+X0Y0D02*
+X500000Y0D01*
+X500000Y400000D01*
+X0Y400000D01*
+X0Y0D01*
+X600000Y0D02*
+X700000Y0D01*
+X700000Y100000D01*
+X600000Y100000D01*
+X600000Y0D01*
+M02*
+`;
+    const outline = extractOutline(disjoint);
+    expect(outline.holes).toHaveLength(0);
+    expect(outline.bbox.maxX).toBeCloseTo(50, 3);
+  });
+
+  it("单轮廓文件 holes 为空(向后兼容)", () => {
+    const outline = extractOutline(SAMPLE_GKO_MM);
+    expect(outline.holes).toHaveLength(0);
+    expect(outline.points.length).toBe(5);
+  });
+});

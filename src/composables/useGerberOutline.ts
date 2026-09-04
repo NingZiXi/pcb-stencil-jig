@@ -19,8 +19,10 @@ export interface GerberOutlineResult {
   filename: string;
   width: number;  // mm
   height: number; // mm
-  /** 多边形点(已闭合),坐标 = 原 Gerber 坐标 - bbox 中心(居中) */
+  /** 外框多边形点(已闭合),坐标 = 原 Gerber 坐标 - bbox 中心(居中) */
   outlinePoints: Array<[number, number]>;
+  /** 内孔轮廓(已闭合,同 outer 坐标系)— 板内开槽的 PCB */
+  holes: Array<Array<[number, number]>>;
   /** 多边形原始包围盒中心(用于 debug) */
   bboxCenter: { x: number; y: number };
   parse: GerberOutline;
@@ -98,11 +100,14 @@ export function useGerberOutline() {
       );
     }
 
-    // 把多边形点平移到以 bbox 中心为原点(方便 SCAD 居中放置)
+    // 把多边形点平移到以 bbox 中心为原点(方便 SCAD 居中放置);内孔同坐标系一起平移
     const cx = (outline.bbox.minX + outline.bbox.maxX) / 2;
     const cy = (outline.bbox.minY + outline.bbox.maxY) / 2;
     const centeredPoints = outline.points.map(
       ([x, y]): [number, number] => [x - cx, y - cy]
+    );
+    const centeredHoles = outline.holes.map((h) =>
+      h.map(([x, y]): [number, number] => [x - cx, y - cy])
     );
 
     result.value = {
@@ -111,6 +116,7 @@ export function useGerberOutline() {
       width: outline.bbox.maxX - outline.bbox.minX,
       height: outline.bbox.maxY - outline.bbox.minY,
       outlinePoints: centeredPoints,
+      holes: centeredHoles,
       bboxCenter: { x: cx, y: cy },
       parse: outline,
     };

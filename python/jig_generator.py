@@ -109,6 +109,42 @@ def make_rect_solid(size, depth):
     return p.part
 
 
+def make_through_hole_solid(hole_points, height, clearance=0.0):
+    """从内孔 2D 点列表创建通孔 solid(z∈[-0.1, height+0.1],贯穿托盘)
+
+    内孔与外框同向放 clearance:PCB 孔边与孔壁之间留间隙,方便取放。
+    退化/无效孔返回 None(调用方跳过)。
+    """
+    if len(hole_points) < 3:
+        return None
+
+    sh = ShapelyPolygon(hole_points)
+    if not sh.is_valid:
+        sh = sh.buffer(0)
+    if sh.is_empty or sh.area < 0.01:  # <0.01mm² 的孔打印不出来
+        return None
+
+    if clearance > 0:
+        sh = sh.buffer(clearance)
+        if sh.is_empty:
+            return None
+
+    exterior = list(sh.exterior.coords)
+    if len(exterior) > 1 and exterior[0] == exterior[-1]:
+        exterior = exterior[:-1]
+    if len(exterior) < 3:
+        return None
+
+    pts_2d = [bd.Vector(x, y, 0) for x, y in exterior]
+    with BuildPart() as p:
+        with BuildSketch(Plane.XY) as s:
+            with BuildLine() as l:
+                Polyline(*pts_2d, close=True)
+            make_face()
+        extrude(amount=height + 0.2)
+    return p.part.moved(bd.Location((0, 0, -0.1)))
+
+
 def build_base(p):
     """钢网夹 B 面(底): 外壳 + 中央钢网窗口 + 4 角螺柱"""
     jig_size = p["jig_size"]                          # 正方形边长
@@ -189,6 +225,12 @@ def build_insert(p):
         )
     slot = slot.moved(bd.Location((0, 0, insert_h - pcb_slot_depth)))
     plate = plate - slot
+
+    # 4.5 板内孔:槽底按内孔轮廓挖穿(顶出 PCB + 透锡)
+    for hole in p.get("pcb_outline_holes", []):
+        solid = make_through_hole_solid(hole, insert_h, clearance)
+        if solid is not None:
+            plate = plate - solid
 
     # 5. 4 角螺丝过孔(在大柱子中心,贯穿整个插板)
     # Cylinder 居中定位:moved z=insert_h/2 → 孔贯穿 z∈[-0.1, insert_h+0.1]
@@ -350,7 +392,8 @@ def main():
         f"pcb={params['pcb_size_x']:.1f}x{params['pcb_size_y']:.1f} "
         f"stencil={params['stencil_size']:.1f} "
         f"jig={params['jig_size']:.0f} "
-        f"outline_pts={len(params.get('pcb_outline_points', []))}",
+        f"outline_pts={len(params.get('pcb_outline_points', []))} "
+        f"holes={len(params.get('pcb_outline_holes', []))}",
         file=sys.stderr,
     )
 

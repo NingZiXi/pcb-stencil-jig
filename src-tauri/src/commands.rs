@@ -18,6 +18,10 @@ pub struct ScadParams {
     /// 空数组 = 用矩形代替(向后兼容)
     #[serde(default)]
     pub pcb_outline_points: Vec<[f64; 2]>,
+    /// PCB 板框内孔轮廓 [[[x, y], ...], ...],同 pcb_outline_points 坐标系
+    /// 空数组 = 无内孔
+    #[serde(default)]
+    pub pcb_outline_holes: Vec<Vec<[f64; 2]>>,
     pub stencil_size: f64,
     pub screw_spacing: f64,
     pub base_height: f64,

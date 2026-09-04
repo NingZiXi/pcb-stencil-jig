@@ -192,12 +192,14 @@ function onSizeDetected(payload: {
   height: number;
   filename: string;
   outlinePoints: Array<[number, number]>;
+  holes: Array<Array<[number, number]>>;
 }) {
   configStore.applyGerberSize(
     payload.width,
     payload.height,
     payload.filename,
-    payload.outlinePoints
+    payload.outlinePoints,
+    payload.holes
   );
 }
 

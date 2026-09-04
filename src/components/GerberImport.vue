@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "vue-i18n";
@@ -13,6 +13,7 @@ const emit = defineEmits<{
     height: number;
     filename: string;
     outlinePoints: Array<[number, number]>;
+    holes: Array<Array<[number, number]>>;
   }): void;
 }>();
 
@@ -37,6 +38,7 @@ async function onFileChange(e: Event) {
       height: result.value.height,
       filename: result.value.filename,
       outlinePoints: result.value.outlinePoints,
+      holes: result.value.holes,
     });
   }
   target.value = "";
@@ -54,6 +56,7 @@ async function onDrop(e: DragEvent) {
       height: result.value.height,
       filename: result.value.filename,
       outlinePoints: result.value.outlinePoints,
+      holes: result.value.holes,
     });
   }
 }
@@ -89,6 +92,7 @@ async function processDroppedPaths(paths: string[]) {
         height: result.value.height,
         filename: result.value.filename,
         outlinePoints: result.value.outlinePoints,
+        holes: result.value.holes,
       });
     }
   } catch (err) {
@@ -131,6 +135,14 @@ function clear() {
 function fmt(n: number): string {
   return n.toFixed(2);
 }
+
+/** SVG path:外框 + 内孔子路径,配合 fill-rule=evenodd 显示挖孔 */
+const outlinePath = computed(() => {
+  if (!result.value) return "";
+  const toSub = (pts: Array<[number, number]>) =>
+    pts.map((p) => `${p[0]},${p[1]}`).join(" ");
+  return [toSub(result.value.outlinePoints), ...result.value.holes.map(toSub)].join(" ");
+});
 </script>
 
 <template>
@@ -185,7 +197,8 @@ function fmt(n: number): string {
       >
         <g transform="scale(1, -1)">
           <polygon
-            :points="result.outlinePoints.map(p => `${p[0]},${p[1]}`).join(' ')"
+            :points="outlinePath"
+            fill-rule="evenodd"
             fill="rgba(62,125,98,0.10)"
             stroke="#3E7D62"
             stroke-width="0.3"
@@ -228,6 +241,10 @@ function fmt(n: number): string {
               ({{ t('gerber.arcs', { n: result.parse.arcsLinearized }) }})
             </span>
           </span>
+        </div>
+        <div v-if="result.holes.length > 0" class="info-row">
+          <span class="info-label">{{ t('gerber.holesLabel') }}</span>
+          <span class="info-value">{{ t('gerber.holes', { n: result.holes.length }) }}</span>
         </div>
       </div>
 

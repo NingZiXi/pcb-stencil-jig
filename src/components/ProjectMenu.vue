@@ -18,6 +18,7 @@ function buildScadParams() {
     pcb_thickness: c.pcbThickness,
     pcb_pocket_clearance: c.pcbPocketClearance,
     pcb_outline_points: c.pcbOutlinePoints,
+    pcb_outline_holes: c.pcbOutlineHoles,
     stencil_size: c.stencilSize,
     screw_spacing: c.screwSpacing,
     base_height: c.baseHeight,
@@ -91,6 +92,7 @@ async function loadProject() {
     store.config.pcbSupportRadius = cfg.pcb_support_radius ?? 5;
     store.config.pcbSupportOffset = cfg.pcb_support_offset ?? 58;
     store.config.pcbOutlinePoints = cfg.pcb_outline_points ?? [];
+    store.config.pcbOutlineHoles = cfg.pcb_outline_holes ?? [];
     store.config.gerberFilename = project.gerber_filename;
 
     ElMessage.success(t("project.loaded"));

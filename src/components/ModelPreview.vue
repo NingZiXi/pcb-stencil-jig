@@ -44,7 +44,7 @@ function paramsHash() {
   // 只 hash 跟几何相关的参数(避免无关改动触发重渲染)
   // pcbOutlinePoints 用完整点列表:同点数的异形板框也要正确失效
   return JSON.stringify({
-    pcb: [c.pcbSizeX, c.pcbSizeY, c.pcbThickness, c.pcbPocketClearance, c.pcbOutlinePoints],
+    pcb: [c.pcbSizeX, c.pcbSizeY, c.pcbThickness, c.pcbPocketClearance, c.pcbOutlinePoints, c.pcbOutlineHoles],
     stencil: [c.stencilSize, c.stencilSize],
     screw: [c.screwSpacing],
     dims: [c.baseHeight, c.topCoverHeight, c.postDiameter, c.postHeight, c.thumbscrewHeadD, c.thumbscrewClearanceD, c.jigSize, c.jigSize, c.insertHeight, c.pcbSupportRadius, c.pcbSupportOffset],
@@ -59,6 +59,7 @@ function buildScadParams() {
     pcb_thickness: c.pcbThickness,
     pcb_pocket_clearance: c.pcbPocketClearance,
     pcb_outline_points: c.pcbOutlinePoints,
+    pcb_outline_holes: c.pcbOutlineHoles,
     stencil_size: c.stencilSize,
     screw_spacing: c.screwSpacing,
     base_height: c.baseHeight,
@@ -378,8 +379,8 @@ onBeforeUnmount(() => {
   controls.value = null;
 });
 
-// 导出所有 3 个 STL 文件(选目录 → Rust export_stl 直接写盘)
-async function exportAllStl() {
+// 导出所有 3 个部件(STL / STEP,选目录 → Rust export_stl 按扩展名分流直接写盘)
+async function exportAll(fmt: "stl" | "step") {
   if (!store.pythonDetected) {
     errorMsg.value = t("preview.noPythonExport");
     return;
@@ -400,15 +401,15 @@ async function exportAllStl() {
     const dir = targetDir.replace(/[\\/]+$/, "");
     const sep = dir.includes("\\") ? "\\" : "/";
     const parts: Array<{ name: PartName; rust: string; filename: string }> = [
-      { name: "base", rust: "base", filename: "jig_base.stl" },
-      { name: "insert", rust: "pcb_insert", filename: "jig_pcb_insert.stl" },
-      { name: "cover", rust: "top_cover", filename: "jig_top_cover.stl" },
+      { name: "base", rust: "base", filename: `jig_base.${fmt}` },
+      { name: "insert", rust: "pcb_insert", filename: `jig_pcb_insert.${fmt}` },
+      { name: "cover", rust: "top_cover", filename: `jig_top_cover.${fmt}` },
     ];
 
     for (const p of parts) {
       const fullPath = `${dir}${sep}${p.filename}`;
-      // 缓存命中(当前参数):bytes 直接落盘,跳过 Python 重新生成
-      const cached = stlCache.value[p.name];
+      // STL 缓存命中(当前参数):bytes 直接落盘,跳过 Python 重新生成;STEP 无缓存
+      const cached = fmt === "stl" ? stlCache.value[p.name] : undefined;
       if (cached && cached.paramsHash === hash) {
         await invoke("write_file_bytes", { path: fullPath, bytes: cached.bytes });
       } else {
@@ -416,7 +417,11 @@ async function exportAllStl() {
       }
     }
 
-    ElMessage.success(t("preview.exported", { dir }));
+    ElMessage.success(
+      fmt === "stl"
+        ? t("preview.exported", { dir })
+        : t("preview.exportedStep", { dir })
+    );
   } catch (e) {
     errorMsg.value = t("preview.exportFailed", { msg: e instanceof Error ? e.message : String(e) });
   } finally {
@@ -457,13 +462,27 @@ const partTabs = computed(() => [
           </svg>
           {{ t('preview.refresh') }}
         </button>
-        <button class="action-btn primary" @click="exportAllStl">
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <path d="M3 3v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6l-3-3H4a1 1 0 0 0-1 1zM6 3v3h4M8 8v3M6.5 9.5L8 11l1.5-1.5"
-              fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          {{ t('preview.export') }}
-        </button>
+        <el-dropdown
+          trigger="click"
+          @command="(f: string | number | object) => exportAll(f as 'stl' | 'step')"
+        >
+          <button class="action-btn primary">
+            <svg viewBox="0 0 16 16" width="14" height="14">
+              <path d="M3 3v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6l-3-3H4a1 1 0 0 0-1 1zM6 3v3h4M8 8v3M6.5 9.5L8 11l1.5-1.5"
+                fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            {{ t('preview.export') }}
+            <svg class="caret" viewBox="0 0 16 16" width="10" height="10">
+              <path d="M4 6.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="stl">{{ t('preview.exportStl') }}</el-dropdown-item>
+              <el-dropdown-item command="step">{{ t('preview.exportStep') }}</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
@@ -620,6 +639,11 @@ const partTabs = computed(() => [
 
 .action-btn svg {
   color: inherit;
+}
+
+.action-btn .caret {
+  margin-left: -2px;
+  opacity: 0.8;
 }
 
 .spinning {

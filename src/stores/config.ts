@@ -42,6 +42,8 @@ export interface AppConfig {
   gerberFilename: string | null;
   /** 实际板框多边形点(已平移到以 bbox 中心为原点) */
   pcbOutlinePoints: Array<[number, number]>;
+  /** 板框内孔轮廓(同 pcbOutlinePoints 坐标系;板内开槽的 PCB) */
+  pcbOutlineHoles: Array<Array<[number, number]>>;
 }
 
 const DEFAULT: AppConfig = {
@@ -63,6 +65,7 @@ const DEFAULT: AppConfig = {
   jigSize: 140,
   gerberFilename: null,
   pcbOutlinePoints: [],
+  pcbOutlineHoles: [],
 };
 
 /**
@@ -114,12 +117,78 @@ export const useConfigStore = defineStore("config", () => {
     { immediate: true }
   );
 
+  // 参数校验:非阻塞警告(key 为 i18n 键,组件层负责展示)
+  // 规则与 Python 端几何约束对应,越界只提醒不拦截
+  const warnings = computed(() => {
+    const c = config.value;
+    const list: Array<{ key: string; params?: Record<string, number | string> }> = [];
+
+    // 钢网窗口应完整露出 PCB 印刷区
+    if (c.stencilSize < Math.max(c.pcbSizeX, c.pcbSizeY) - 0.01) {
+      list.push({ key: "config.warnings.stencilTooSmall" });
+    }
+    // 夹具边距:computeJigSize 用 30mm(边框 + 螺丝空间),手动改小触发
+    if (c.jigSize < c.stencilSize + 30 - 0.01) {
+      list.push({
+        key: "config.warnings.jigTooSmall",
+        params: { s: c.stencilSize, j: Math.ceil((c.stencilSize + 30) / 20) * 20 },
+      });
+    }
+    // PCB 必须放得进夹具(角柱中心距边 30mm,再留余量)
+    if (Math.max(c.pcbSizeX, c.pcbSizeY) > c.jigSize - 20) {
+      list.push({
+        key: "config.warnings.pcbTooBig",
+        params: { p: Math.max(c.pcbSizeX, c.pcbSizeY), j: c.jigSize },
+      });
+    }
+    // PCB 槽深 = pcbThickness + 0.2,插板必须比它厚
+    if (c.insertHeight < c.pcbThickness + 0.2 + 0.01) {
+      list.push({
+        key: "config.warnings.insertTooThin",
+        params: { h: c.insertHeight, n: c.pcbThickness + 0.2 },
+      });
+    }
+    // M3 自攻螺柱:直径太小壁厚不足(过孔 3.2 + 壁厚 ≥1)
+    if (c.postDiameter < c.thumbscrewClearanceD + 1) {
+      list.push({
+        key: "config.warnings.postTooSmall",
+        params: { d: c.postDiameter },
+      });
+    }
+    // 沉孔直径必须明显大于过孔,否则沉头无效果
+    if (c.thumbscrewHeadD <= c.thumbscrewClearanceD + 0.8) {
+      list.push({
+        key: "config.warnings.headTooSmall",
+        params: { d: c.thumbscrewHeadD, c: c.thumbscrewClearanceD },
+      });
+    }
+    // 顶盖沉孔深 1.5mm,盖太薄会穿透
+    if (c.topCoverHeight < 2.5) {
+      list.push({
+        key: "config.warnings.coverTooThin",
+        params: { h: c.topCoverHeight },
+      });
+    }
+    // 支撑柱须落在 PCB 范围内(以 bbox 近似;异形板/内孔请自行确认)
+    if (
+      c.pcbSupportRadius > 0 &&
+      c.pcbSupportOffset + c.pcbSupportRadius > Math.min(c.pcbSizeX, c.pcbSizeY) / 2
+    ) {
+      list.push({
+        key: "config.warnings.supportOutside",
+        params: { o: c.pcbSupportOffset },
+      });
+    }
+    return list;
+  });
+
   // Actions
   function applyGerberSize(
     width: number,
     height: number,
     filename: string,
-    outlinePoints: Array<[number, number]> = []
+    outlinePoints: Array<[number, number]> = [],
+    holes: Array<Array<[number, number]>> = []
   ) {
     config.value.pcbSizeX = width;
     config.value.pcbSizeY = height;
@@ -128,6 +197,7 @@ export const useConfigStore = defineStore("config", () => {
     config.value.stencilSize = stencil;
     config.value.gerberFilename = filename;
     config.value.pcbOutlinePoints = outlinePoints;
+    config.value.pcbOutlineHoles = holes;
   }
 
   function reset() {
@@ -171,6 +241,7 @@ export const useConfigStore = defineStore("config", () => {
   return {
     config,
     screwPositions,
+    warnings,
     pythonPath,
     pythonDetected,
     depsMissing,

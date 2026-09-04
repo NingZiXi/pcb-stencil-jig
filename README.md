@@ -63,7 +63,9 @@
 ### 环境要求
 
 - **Node.js 20+**
+
 - **Rust 1.77+**(`rustup install stable`)
+
 - **Python 3.10+**(开发模式用系统 Python;发布版自带内置引擎,见下)
 
 ```bash

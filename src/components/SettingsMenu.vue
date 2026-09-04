@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUiStore } from "../stores/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { getVersion } from "@tauri-apps/api/app";
 
 const { t } = useI18n();
 const ui = useUiStore();
 const showSettings = ref(false);
+const appVersion = ref("");
+
+onMounted(async () => {
+  try {
+    appVersion.value = await getVersion();
+  } catch {
+    appVersion.value = "";
+  }
+});
 
 const REPO_URL = "https://github.com/NingZiXi/pcb-stencil-jig";
 const AUTHOR_URL = "https://github.com/NingZiXi";
@@ -98,6 +108,10 @@ function openLink(url: string) {
         <p class="about-desc">{{ t('about.desc') }}</p>
 
         <div class="about-rows">
+          <div class="about-row">
+            <span class="row-label">{{ t('about.version') }}</span>
+            <span class="row-value">v{{ appVersion || '0.1.0' }}</span>
+          </div>
           <div class="about-row">
             <span class="row-label">{{ t('about.repo') }}</span>
             <a class="row-link" @click="openLink(REPO_URL)">{{ REPO_URL.replace('https://', '') }}</a>

@@ -59,6 +59,72 @@ const ARC_PRECISION_MM = 0.1;
 const ARC_MIN_SEGMENTS = 8;
 const ARC_MAX_SEGMENTS = 200;
 
+/** 有向面积(shoelace,顺时针为负) */
+function signedArea(pts: Array<[number, number]>): number {
+  let a = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    a += pts[i][0] * pts[i + 1][1] - pts[i + 1][0] * pts[i][1];
+  }
+  return a / 2;
+}
+
+/** 射线法判断点是否在多边形内(多边形首尾闭合) */
+function pointInPoly(x: number, y: number, poly: Array<[number, number]>): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 2; i < poly.length - 1; j = i, i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/**
+ * 链接开放笔画:嘉立创EDA 等工具把板框画成一段段 D02+D01 独立笔画
+ * (每条边提一次笔),把端点相接(≤tol)的笔画串成完整轮廓。
+ */
+function chainOpenStrokes(
+  open: Array<Array<[number, number]>>,
+  tol = 0.02
+): Array<Array<[number, number]>> {
+  const dist = (a: [number, number], b: [number, number]) =>
+    Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+  const result: Array<Array<[number, number]>> = [];
+  const remaining = [...open];
+  while (remaining.length > 0) {
+    let cur = remaining.shift()!;
+    for (;;) {
+      const tail = cur[cur.length - 1];
+      let merged = false;
+      for (let k = 0; k < remaining.length; k++) {
+        const s = remaining[k];
+        const head = s[0];
+        const end = s[s.length - 1];
+        if (dist(tail, head) <= tol) {
+          // 尾接头
+          cur = cur.concat(s.slice(1));
+          remaining.splice(k, 1);
+          merged = true;
+          break;
+        }
+        if (dist(tail, end) <= tol) {
+          // 尾接尾(反向并入)
+          cur = cur.concat(s.slice(0, -1).reverse());
+          remaining.splice(k, 1);
+          merged = true;
+          break;
+        }
+      }
+      if (!merged) break;
+    }
+    result.push(cur);
+  }
+  return result;
+}
+
 /**
  * 从 Gerber 文本解析出单位、格式和命令列表。
  * 弧线模式(G02/G03)可以与 D01 在不同行,parser 会跨行跟踪模式。
@@ -191,7 +257,9 @@ export function extractOutline(text: string): GerberOutline {
     return units === "in" ? v * inToMm : v;
   };
 
-  const rawPoints: Array<[number, number]> = [];
+  // 轮廓集合:D02(move)= 提笔,开启新轮廓;板内开槽的板框会有多条轮廓
+  const contours: Array<Array<[number, number]>> = [];
+  let cur: Array<[number, number]> | null = null;
   // X/Y 在命令列表里已经是缺省保留后的最终值,直接用
   let prevX = 0;
   let prevY = 0;
@@ -227,8 +295,9 @@ export function extractOutline(text: string): GerberOutline {
     const currY = cmd.y as number;
 
     if (cmd.op === "move") {
-      rawPoints.push(applyTf(toMm(currX), toMm(currY), cmd.tf as never));
-      // move 后,prevX/prevY 更新到新位置
+      // D02 = 提笔:结束当前轮廓,下一点开启新轮廓
+      cur = [applyTf(toMm(currX), toMm(currY), cmd.tf as never)];
+      contours.push(cur);
       prevX = currX;
       prevY = currY;
     } else if (cmd.op === "interpolate") {
@@ -236,6 +305,12 @@ export function extractOutline(text: string): GerberOutline {
       const y = toMm(currY);
       const i = cmd.i !== undefined ? toMm(cmd.i as number) : 0;
       const j = cmd.j !== undefined ? toMm(cmd.j as number) : 0;
+
+      // 文件以 D01 起始(无 D02):自动开一条轮廓
+      if (!cur) {
+        cur = [];
+        contours.push(cur);
+      }
 
       if (cmd.isArc && (Math.abs(i) > 1e-9 || Math.abs(j) > 1e-9)) {
         const prevXmm = toMm(prevX);
@@ -246,12 +321,12 @@ export function extractOutline(text: string): GerberOutline {
         const ccw = cmd.ccw === true;
 
         if (radius < 1e-9) {
-          rawPoints.push(applyTf(x, y, cmd.tf as never));
+          cur.push(applyTf(x, y, cmd.tf as never));
           continue;
         }
 
         const startAngle = Math.atan2(prevYmm - cy, prevXmm - cx);
-        let endAngle = Math.atan2(y - cy, x - cx);
+        const endAngle = Math.atan2(y - cy, x - cx);
 
         let delta = endAngle - startAngle;
         if (ccw) {
@@ -269,13 +344,13 @@ export function extractOutline(text: string): GerberOutline {
 
         for (let s = 1; s <= segs; s++) {
           const a = startAngle + stepAngle * s;
-          rawPoints.push(
+          cur.push(
             applyTf(cx + radius * Math.cos(a), cy + radius * Math.sin(a), cmd.tf as never)
           );
         }
         arcs++;
       } else {
-        rawPoints.push(applyTf(x, y, cmd.tf as never));
+        cur.push(applyTf(x, y, cmd.tf as never));
       }
       // 无论直线还是弧线,interpolate 后 prevX/prevY 更新到当前点(给下一条命令用)
       prevX = currX;
@@ -283,17 +358,57 @@ export function extractOutline(text: string): GerberOutline {
     }
   }
 
-  // 自动闭合
-  if (rawPoints.length > 1) {
-    const first = rawPoints[0];
-    const last = rawPoints[rawPoints.length - 1];
-    const dx = first[0] - last[0];
-    const dy = first[1] - last[1];
-    if (Math.sqrt(dx * dx + dy * dy) > 0.01) {
-      rawPoints.push([first[0], first[1]]);
+  // 原始轮廓分为两类:已闭合(首尾相接)与开放笔画(嘉立创EDA 风格逐边提笔)
+  const closeness = (c: Array<[number, number]>): boolean => {
+    if (c.length < 2) return false;
+    const [fx, fy] = c[0];
+    const [lx, ly] = c[c.length - 1];
+    return Math.hypot(fx - lx, fy - ly) <= 0.01;
+  };
+  const closedContours = contours.filter(closeness);
+  const openContours = contours.filter((c) => !closeness(c) && c.length >= 2);
+  const allContours = [...closedContours, ...chainOpenStrokes(openContours)];
+
+  // 每条轮廓单独闭合
+  for (const c of allContours) {
+    if (c.length > 1) {
+      const first = c[0];
+      const last = c[c.length - 1];
+      const dx = first[0] - last[0];
+      const dy = first[1] - last[1];
+      if (Math.sqrt(dx * dx + dy * dy) > 0.01) {
+        c.push([first[0], first[1]]);
+      }
     }
   }
 
+  // 过滤退化轮廓(闭合后 <4 个点 = 不足 3 个不同顶点)
+  const valid = allContours.filter((c) => c.length >= 4);
+
+  // 外框 = 面积最大的轮廓(area 初值 -1:自交蝴蝶结等零面积轮廓也能被选中,保持旧行为);
+  // 其余落在外框内部的 = 内孔;外部独立轮廓(拼板)忽略
+  let outer: Array<[number, number]> | null = null;
+  let outerArea = -1;
+  let totalPoints = 0;
+  for (const c of valid) {
+    totalPoints += c.length;
+    const a = Math.abs(signedArea(c));
+    if (a > outerArea) {
+      outerArea = a;
+      outer = c;
+    }
+  }
+
+  const holes: Array<Array<[number, number]>> = [];
+  if (outer) {
+    for (const c of valid) {
+      if (c === outer) continue;
+      const [px, py] = c[0];
+      if (pointInPoly(px, py, outer)) holes.push(c);
+    }
+  }
+
+  const rawPoints = outer ?? [];
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const [x, y] of rawPoints) {
     if (x < minX) minX = x;
@@ -304,13 +419,14 @@ export function extractOutline(text: string): GerberOutline {
 
   return {
     points: rawPoints,
+    holes,
     bbox: {
       minX: isFinite(minX) ? minX : 0,
       minY: isFinite(minY) ? minY : 0,
       maxX: isFinite(maxX) ? maxX : 0,
       maxY: isFinite(maxY) ? maxY : 0,
       units,
-      commandCount: rawPoints.length,
+      commandCount: totalPoints,
     },
     units,
     arcsLinearized: arcs,
@@ -334,9 +450,11 @@ export interface BoundingBox {
 }
 
 export interface GerberOutline {
-  /** 多边形顶点(已闭合,首尾相同) — 单位:mm,原点在 Gerber 原点 */
+  /** 外框多边形顶点(已闭合,首尾相同) — 单位:mm,原点在 Gerber 原点 */
   points: Array<[number, number]>;
-  /** 包围盒(基于多边形顶点) */
+  /** 内孔轮廓列表(每条已闭合)。板内开槽的 PCB(异形挖孔)会有 1 条以上 */
+  holes: Array<Array<[number, number]>>;
+  /** 包围盒(基于外框顶点;内孔在外框内部,不影响) */
   bbox: BoundingBox;
   /** 单位 */
   units: "mm" | "in" | null;

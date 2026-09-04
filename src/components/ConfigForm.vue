@@ -6,6 +6,7 @@ import { useConfigStore } from "../stores/config";
 const store = useConfigStore();
 const { t } = useI18n();
 const c = computed(() => store.config);
+const warnings = computed(() => store.warnings);
 
 // 派生:推导钢网默认 = PCB + 10mm (用户可调)
 function applyStencilFromPcb() {
@@ -19,6 +20,19 @@ function resetAll() {
 
 <template>
   <div class="config-form">
+    <!-- 参数校验:非阻塞警告 -->
+    <div v-if="warnings.length > 0" class="warnings-card">
+      <div class="warnings-head">
+        <svg viewBox="0 0 16 16" width="14" height="14" class="warn-icon">
+          <path d="M8 2L1 14h14L8 2zM8 6v4M8 12v.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>{{ t('config.warnings.title') }}</span>
+      </div>
+      <ul class="warnings-list">
+        <li v-for="(w, i) in warnings" :key="i">{{ t(w.key, w.params ?? {}) }}</li>
+      </ul>
+    </div>
+
     <!-- PCB -->
     <div class="section-label">{{ t('config.pcb') }}</div>
     <div class="field-row">
@@ -141,6 +155,53 @@ function resetAll() {
 <style scoped>
 .config-form {
   padding: 16px;
+}
+
+/* 参数警告卡 */
+.warnings-card {
+  border: 1px solid rgba(226, 121, 0, 0.35);
+  background: var(--status-warning-surface-l1);
+  border-radius: var(--radius-8);
+  padding: 10px 12px;
+  margin-bottom: 4px;
+}
+
+.warnings-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: var(--font-weight-strong);
+  color: var(--status-warning-default);
+  margin-bottom: 6px;
+}
+
+.warnings-list {
+  margin: 0;
+  padding: 0 0 0 2px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.warnings-list li {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-secondary);
+  padding-left: 14px;
+  position: relative;
+}
+
+.warnings-list li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 6px;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--status-warning-default);
 }
 
 .section-label {
