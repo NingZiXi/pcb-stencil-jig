@@ -6,7 +6,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 
 const { t } = useI18n();
 const ui = useUiStore();
-const showAbout = ref(false);
+const showSettings = ref(false);
 
 const REPO_URL = "https://github.com/NingZiXi/pcb-stencil-jig";
 const AUTHOR_URL = "https://github.com/NingZiXi";
@@ -18,21 +18,20 @@ function openLink(url: string) {
 </script>
 
 <template>
-  <el-popover placement="bottom-end" :width="240" trigger="click">
-    <template #reference>
-      <button class="settings-btn" :title="t('settings.button')">
-        <svg viewBox="0 0 16 16" width="15" height="15">
-          <circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4" />
-          <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"
-            fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-        </svg>
-      </button>
-    </template>
+  <button class="settings-btn" :title="t('settings.button')" @click="showSettings = true">
+    <svg viewBox="0 0 24 24" width="15" height="15">
+      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </button>
 
-    <div class="settings-panel">
-      <!-- 外观 -->
-      <div class="section">
-        <span class="section-label">{{ t('settings.appearance') }}</span>
+  <!-- 设置窗口:外观 / 语言 + 关于 -->
+  <el-dialog v-model="showSettings" :title="t('settings.button')" width="440px">
+    <div class="settings-dialog">
+      <!-- ===== 设置:外观 ===== -->
+      <div class="group">
+        <span class="group-label">{{ t('settings.appearance') }}</span>
         <div class="seg-group">
           <button
             class="seg-btn"
@@ -60,9 +59,9 @@ function openLink(url: string) {
         </div>
       </div>
 
-      <!-- 语言 -->
-      <div class="section">
-        <span class="section-label">{{ t('settings.language') }}</span>
+      <!-- ===== 设置:语言 ===== -->
+      <div class="group">
+        <span class="group-label">{{ t('settings.language') }}</span>
         <div class="seg-group">
           <button
             class="seg-btn"
@@ -77,55 +76,44 @@ function openLink(url: string) {
         </div>
       </div>
 
-      <!-- 关于 -->
-      <button class="about-btn" @click="showAbout = true">
-        <svg viewBox="0 0 16 16" width="13" height="13">
-          <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3" />
-          <path d="M8 7v4M8 4.5v.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-        </svg>
-        {{ t('settings.about') }}
-      </button>
-    </div>
-  </el-popover>
+      <div class="divider" />
 
-  <!-- 关于弹窗 -->
-  <el-dialog v-model="showAbout" :title="t('settings.aboutTitle')" width="420px">
-    <div class="about-body">
-      <svg class="about-logo" viewBox="0 0 64 64" width="48" height="48">
-        <rect x="5" y="5" width="54" height="54" rx="11" fill="none" stroke="var(--bg-brand)" stroke-width="6" />
-        <rect x="23" y="23" width="18" height="18" rx="4" fill="var(--brand-500)" />
-        <circle cx="14.5" cy="14.5" r="3.5" fill="var(--icon-default)" />
-        <circle cx="49.5" cy="14.5" r="3.5" fill="var(--icon-default)" />
-        <circle cx="14.5" cy="49.5" r="3.5" fill="var(--icon-default)" />
-        <circle cx="49.5" cy="49.5" r="3.5" fill="var(--icon-default)" />
-      </svg>
-      <h3 class="about-name">{{ t('app.title') }}</h3>
-      <p class="about-desc">{{ t('about.desc') }}</p>
+      <!-- ===== 关于 ===== -->
+      <div class="about">
+        <div class="about-head">
+          <svg class="about-logo" viewBox="0 0 64 64" width="36" height="36">
+            <rect x="5" y="5" width="54" height="54" rx="11" fill="none" stroke="var(--bg-brand)" stroke-width="6" />
+            <rect x="23" y="23" width="18" height="18" rx="4" fill="var(--brand-500)" />
+            <circle cx="14.5" cy="14.5" r="3.5" fill="var(--icon-default)" />
+            <circle cx="49.5" cy="14.5" r="3.5" fill="var(--icon-default)" />
+            <circle cx="14.5" cy="49.5" r="3.5" fill="var(--icon-default)" />
+            <circle cx="49.5" cy="49.5" r="3.5" fill="var(--icon-default)" />
+          </svg>
+          <div class="about-title">
+            <span class="name">{{ t('app.title') }}</span>
+            <span class="tag">{{ t('about.openSource') }} · MIT</span>
+          </div>
+        </div>
 
-      <div class="about-rows">
-        <div class="about-row">
-          <span class="row-label">{{ t('about.openSource') }}</span>
-          <span class="row-value">{{ t('about.openSourceDesc') }}</span>
-        </div>
-        <div class="about-row">
-          <span class="row-label">{{ t('about.repo') }}</span>
-          <a class="row-link" @click="openLink(REPO_URL)">{{ REPO_URL.replace('https://', '') }}</a>
-        </div>
-        <div class="about-row">
-          <span class="row-label">{{ t('about.author') }}</span>
-          <a class="row-link" @click="openLink(AUTHOR_URL)">NingZiXi</a>
-        </div>
-        <div class="about-row">
-          <span class="row-label">{{ t('about.license') }}</span>
-          <span class="row-value">{{ t('about.licenseValue') }}</span>
-        </div>
-        <div class="about-row">
-          <span class="row-label">{{ t('about.stack') }}</span>
-          <span class="row-value">{{ t('about.stackValue') }}</span>
-        </div>
-        <div class="about-row">
-          <span class="row-label">{{ t('about.inspired') }}</span>
-          <a class="row-link" @click="openLink(INSPIRED_URL)">lamikr/pcb_stencil_jigboard</a>
+        <p class="about-desc">{{ t('about.desc') }}</p>
+
+        <div class="about-rows">
+          <div class="about-row">
+            <span class="row-label">{{ t('about.repo') }}</span>
+            <a class="row-link" @click="openLink(REPO_URL)">{{ REPO_URL.replace('https://', '') }}</a>
+          </div>
+          <div class="about-row">
+            <span class="row-label">{{ t('about.author') }}</span>
+            <a class="row-link" @click="openLink(AUTHOR_URL)">NingZiXi</a>
+          </div>
+          <div class="about-row">
+            <span class="row-label">{{ t('about.stack') }}</span>
+            <span class="row-value">{{ t('about.stackValue') }}</span>
+          </div>
+          <div class="about-row">
+            <span class="row-label">{{ t('about.inspired') }}</span>
+            <a class="row-link" @click="openLink(INSPIRED_URL)">lamikr/pcb_stencil_jigboard</a>
+          </div>
         </div>
       </div>
     </div>
@@ -152,19 +140,21 @@ function openLink(url: string) {
   color: var(--text-default);
 }
 
-.settings-panel {
+.settings-dialog {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  padding: 0 4px;
 }
 
-.section {
+/* 设置组 */
+.group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-.section-label {
+.group-label {
   font-size: 11px;
   font-weight: var(--font-weight-medium);
   color: var(--text-tertiary);
@@ -186,7 +176,7 @@ function openLink(url: string) {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 5px 8px;
+  padding: 6px 8px;
   border: none;
   border-radius: var(--radius-4);
   background: transparent;
@@ -207,44 +197,43 @@ function openLink(url: string) {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.about-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border: 1px solid var(--border-neutral-l1);
-  border-radius: var(--radius-6);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease;
+.divider {
+  height: 1px;
+  background: var(--border-neutral-l1);
 }
 
-.about-btn:hover {
-  background: var(--bg-overlay-l1);
-  color: var(--text-default);
-}
-
-/* About dialog */
-.about-body {
+/* 关于区 */
+.about {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.about-head {
+  display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 8px 0;
+  gap: 12px;
 }
 
 .about-logo {
-  margin-bottom: 2px;
+  flex-shrink: 0;
 }
 
-.about-name {
-  margin: 0;
-  font-size: 16px;
+.about-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.about-title .name {
+  font-size: 15px;
   font-weight: var(--font-weight-strong);
   color: var(--text-default);
+}
+
+.about-title .tag {
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
 .about-desc {
@@ -252,12 +241,9 @@ function openLink(url: string) {
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-secondary);
-  text-align: center;
 }
 
 .about-rows {
-  width: 100%;
-  margin-top: 8px;
   border-top: 1px solid var(--border-neutral-l1);
 }
 
