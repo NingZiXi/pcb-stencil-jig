@@ -467,6 +467,33 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+/* Dialog:TraeWork 化(设置窗口/项目保存等) */
+.el-dialog {
+  border-radius: var(--radius-12);
+  padding: 0;
+}
+
+.el-dialog__header {
+  padding: 16px 24px 12px;
+  margin-right: 0;
+  border-bottom: 1px solid var(--border-neutral-l1);
+}
+
+.el-dialog__title {
+  font-size: 14px;
+  font-weight: var(--font-weight-strong);
+  color: var(--text-default);
+  line-height: 20px;
+}
+
+.el-dialog__body {
+  padding: 20px 24px 24px;
+}
+
+.el-dialog__footer {
+  padding: 12px 24px 16px;
+}
+
 /* ===== Dark Theme =====
    html.dark 由 ui store 切换;只覆盖会变的 token,语义色保持 */
 html.dark {
@@ -479,6 +506,7 @@ html.dark {
   --bg-overlay-l4: rgba(229, 229, 229, 0.18);
   --bg-menu: #232325;
   --bg-invert: #F5F5F5;
+  --scrim: rgba(20, 20, 22, 0.88);
 
   /* Brand:暗色下提亮一档保证可读 */
   --bg-brand: #4A8A70;

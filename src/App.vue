@@ -503,7 +503,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 8px;
   min-width: 340px;
-  max-width: 800px;
+  max-width: 600px;
 }
 
 /* ===== Card Slots ===== */

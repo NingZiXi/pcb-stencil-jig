@@ -695,7 +695,7 @@ canvas {
 
 .overlay.error {
   color: var(--status-error-default);
-  background: rgba(245, 245, 245, 0.92);
+  background: var(--scrim);
 }
 
 .spin-icon {
