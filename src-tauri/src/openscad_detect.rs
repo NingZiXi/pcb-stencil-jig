@@ -15,6 +15,31 @@ const PYTHON_PATHS: &[&str] = &[
     "C:/Program Files/Python311/python.exe",
 ];
 
+/// 扫描 %LOCALAPPDATA%\Programs\Python\Python3XX\(winget / 官网安装器默认位置)
+/// 返回最高版本的 python.exe
+#[cfg(target_os = "windows")]
+pub fn find_python_in_localappdata() -> Option<String> {
+    let la = std::env::var("LOCALAPPDATA").ok()?;
+    let base = Path::new(&la).join("Programs").join("Python");
+    let mut best: Option<(u32, String)> = None;
+    if let Ok(entries) = std::fs::read_dir(&base) {
+        for e in entries.flatten() {
+            let name = e.file_name().to_string_lossy().to_string();
+            if let Some(ver) = name.strip_prefix("Python3") {
+                if let Ok(v) = ver.parse::<u32>() {
+                    let exe = e.path().join("python.exe");
+                    if exe.exists() {
+                        if best.as_ref().map_or(true, |(bv, _)| v > *bv) {
+                            best = Some((v, exe.to_string_lossy().into_owned()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    best.map(|(_, p)| p)
+}
+
 #[cfg(target_os = "macos")]
 const PYTHON_PATHS: &[&str] = &[
     "/opt/homebrew/bin/python3",
@@ -76,11 +101,16 @@ pub fn normalize_path(p: &str) -> String {
     p.to_string()
 }
 
-/// 在常见安装位置查找 Python
+/// 在常见安装位置查找 Python(含 %LOCALAPPDATA% winget/官网安装器位置)
 pub fn find_python_in_standard_paths() -> Option<String> {
     for path in PYTHON_PATHS {
         if Path::new(path).exists() {
             return Some(path.to_string());
+        }
+    }
+    if cfg!(target_os = "windows") {
+        if let Some(p) = find_python_in_localappdata() {
+            return Some(p);
         }
     }
     None

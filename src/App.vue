@@ -288,9 +288,9 @@ onBeforeUnmount(() => {
             <div class="slot-meta">
               <span
                 class="status-badge"
-                :class="configStore.pythonDetected ? 'is-ok' : 'is-warn'"
+                :class="configStore.pythonDetected ? 'is-ok' : configStore.pythonPath ? 'is-warn' : 'is-err'"
               >
-                {{ configStore.pythonDetected ? t('cards.configured') : t('cards.notDetected') }}
+                {{ configStore.pythonDetected ? t('cards.configured') : configStore.pythonPath ? t('cards.depsMissing') : t('cards.notDetected') }}
               </span>
               <svg class="chevron" :class="{ 'is-collapsed': collapsed.python }" viewBox="0 0 16 16" width="16" height="16">
                 <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -596,6 +596,11 @@ onBeforeUnmount(() => {
 .status-badge.is-warn {
   background: var(--status-warning-surface-l1);
   color: var(--status-warning-default);
+}
+
+.status-badge.is-err {
+  background: var(--status-error-surface-l1);
+  color: var(--status-error-default);
 }
 
 .chevron {

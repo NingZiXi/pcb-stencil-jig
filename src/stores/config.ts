@@ -134,20 +134,33 @@ export const useConfigStore = defineStore("config", () => {
     config.value = { ...DEFAULT };
   }
 
-  // Python 路径(夹具生成的 CAD 引擎)
+  // Python 引擎状态(python + CAD 依赖)
   const pythonPath = ref<string | null>(null);
-  const pythonDetected = ref(false);
+  const pythonDetected = ref(false); // = 找到 python 且依赖齐全
+  const depsMissing = ref<string[]>([]);
   const pythonError = ref<string | null>(null);
+  const engineLoading = ref(false);
 
   async function detectPython() {
     pythonError.value = null;
+    engineLoading.value = true;
     try {
-      pythonPath.value = await invoke<string>("detect_python");
-      pythonDetected.value = true;
+      const st = await invoke<{
+        python_path: string | null;
+        deps_ok: boolean;
+        missing: string[];
+      }>("get_engine_status");
+      pythonPath.value = st.python_path;
+      depsMissing.value = st.missing ?? [];
+      // 只有 python + 依赖全齐才算就绪(否则常驻 server 起不来)
+      pythonDetected.value = !!st.python_path && st.deps_ok;
     } catch (e) {
       pythonPath.value = null;
       pythonDetected.value = false;
+      depsMissing.value = [];
       pythonError.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      engineLoading.value = false;
     }
   }
 
@@ -156,7 +169,9 @@ export const useConfigStore = defineStore("config", () => {
     screwPositions,
     pythonPath,
     pythonDetected,
+    depsMissing,
     pythonError,
+    engineLoading,
     applyGerberSize,
     reset,
     detectPython,

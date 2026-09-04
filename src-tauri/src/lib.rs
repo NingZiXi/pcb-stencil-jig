@@ -13,7 +13,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
-            commands::detect_python,
+            commands::get_engine_status,
+            commands::install_deps,
+            commands::install_python,
             commands::set_python_path,
             commands::generate_stl,
             commands::export_stl,

@@ -10,6 +10,7 @@ export default {
     config: "参数调整",
     screw: "螺丝布局",
     configured: "已配置",
+    depsMissing: "缺依赖",
     notDetected: "未检测",
   },
   settings: {
@@ -91,13 +92,28 @@ export default {
     reset: "重置为默认值",
   },
   python: {
-    needHint: "需要 Python 3.10+ 与 build123d、shapely。安装命令:pip install build123d shapely numpy",
-    pickFile: "选择文件...",
-    savePath: "保存路径",
+    // 状态
+    ready: "引擎就绪",
+    readyHint: "CAD 引擎已就绪,可以直接生成模型",
+    missingDeps: "缺少 CAD 依赖",
+    missingDepsHint: "找到 Python,但缺少以下依赖(生成模型必需):",
+    noPython: "未找到 Python",
+    noPythonHint: "本工具用 Python(build123d)生成 3D 模型,需要 Python 3.10+ 与三个依赖包。大约需要下载 200MB。",
+    checking: "检测中…",
+    // 按钮
+    installAll: "一键安装(全自动)",
+    installDeps: "一键安装依赖",
+    installing: "安装中…",
+    pickFile: "手动选择 python.exe",
+    openDownload: "打开官网下载",
     reDetect: "重新检测",
-    detectAgain: "再次自动检测",
-    clearConfig: "清除配置",
-    cleared: "用户清除了自定义路径,点击重新检测使用系统默认",
+    // 安装日志
+    installTitle: "安装日志",
+    installDone: "安装完成",
+    installFailed: "安装失败",
+    pipHint: "pip 走清华镜像加速;也可手动执行:pip install build123d shapely numpy",
+    cleared: "已清除自定义路径,重新检测使用系统默认",
+    pythonInstalled: "Python 安装成功,开始安装依赖…",
   },
   project: {
     load: "加载项目",

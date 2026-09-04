@@ -61,38 +61,188 @@ impl Part {
 const STORE_FILE: &str = "settings.json";
 const KEY_PYTHON_PATH: &str = "python_path";
 
-/// 探测系统中是否安装 Python
-/// 优先级:用户配置路径 → PATH → 标准安装位置
-#[tauri::command]
-pub async fn detect_python(app: AppHandle) -> Result<String, AppError> {
-    // 1. 先查用户配置
-    if let Ok(store) = app.store(STORE_FILE) {
-        if let Some(path_value) = store.get(KEY_PYTHON_PATH) {
-            if let Some(path_str) = path_value.as_str() {
-                if !path_str.is_empty() {
-                    let normalized = openscad_detect::normalize_path(path_str);
-                    if std::path::Path::new(&normalized).exists() {
-                        // 如果归化后不同,回写到 store
-                        if normalized != path_str {
-                            store.set(
-                                KEY_PYTHON_PATH,
-                                serde_json::Value::String(normalized.clone()),
-                            );
-                            let _ = store.save();
-                        }
-                        return Ok(normalized);
-                    }
-                }
+// ---------------------------------------------------------------------------
+// 引擎状态与一键配置
+// ---------------------------------------------------------------------------
+
+/// 引擎(Python + CAD 依赖)状态
+#[derive(Debug, Clone, Serialize)]
+pub struct EngineStatus {
+    /// 找到的 python.exe 路径(None = 未找到)
+    pub python_path: Option<String>,
+    /// CAD 依赖(build123d/shapely/numpy)是否齐全
+    pub deps_ok: bool,
+    /// 缺失的依赖名列表
+    pub missing: Vec<String>,
+}
+
+/// 用 find_spec 检查依赖(只查不导入,秒回;真 import build123d 要 ~5s)
+fn check_deps_blocking(python: &str) -> Vec<String> {
+    const REQUIRED: &[&str] = &["build123d", "shapely", "numpy"];
+    let script = format!(
+        "import importlib.util,sys;\
+         missing=[m for m in {REQUIRED:?} if importlib.util.find_spec(m) is None];\
+         print(','.join(missing))"
+    );
+    match std::process::Command::new(python)
+        .arg("-c")
+        .arg(&script)
+        .output()
+    {
+        Ok(out) if out.status.success() => {
+            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if text.is_empty() {
+                Vec::new()
+            } else {
+                text.split(',').map(|s| s.to_string()).collect()
             }
         }
+        // python 本身跑不起来(损坏/版本过老):全部视为缺失
+        _ => REQUIRED.iter().map(|s| s.to_string()).collect(),
     }
+}
 
-    // 2. PATH / 标准路径探测
-    openscad_detect::detect_python().ok_or_else(|| {
-        AppError::OpenScadNotFound(
-            "未找到 Python。请先安装 Python 3.10+,然后 `pip install build123d shapely numpy`,最后在下方手动指定 python.exe 路径。".into(),
-        )
-    })
+/// 查询引擎状态:用户配置 > PATH > 标准位置;找到 python 后检查依赖
+#[tauri::command]
+pub async fn get_engine_status(app: AppHandle) -> Result<EngineStatus, AppError> {
+    let configured = app
+        .store(STORE_FILE)
+        .ok()
+        .and_then(|s| s.get(KEY_PYTHON_PATH))
+        .and_then(|v| v.as_str().map(String::from))
+        .filter(|s| !s.is_empty() && std::path::Path::new(s).exists());
+
+    let python = configured
+        .clone()
+        .or_else(openscad_detect::detect_python);
+
+    match python {
+        Some(p) => {
+            let py = p.clone();
+            let missing = tokio::task::spawn_blocking(move || check_deps_blocking(&py))
+                .await
+                .map_err(|e| AppError::Other(format!("依赖检查失败: {}", e)))?;
+            Ok(EngineStatus {
+                python_path: Some(p),
+                deps_ok: missing.is_empty(),
+                missing,
+            })
+        }
+        None => Ok(EngineStatus {
+            python_path: None,
+            deps_ok: false,
+            missing: Vec::new(),
+        }),
+    }
+}
+
+/// 逐行读取子进程输出并 emit 到前端;返回是否退出成功
+async fn run_with_log(app: &AppHandle, mut cmd: std::process::Command) -> Result<(), AppError> {
+    use std::io::{BufRead, BufReader};
+    use std::process::Stdio;
+    use tauri::Emitter;
+
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| AppError::Io(format!("启动安装进程失败: {}", e)))?;
+
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
+
+    let h_stdout = app.clone();
+    let t_out = tokio::task::spawn_blocking(move || {
+        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+            let _ = h_stdout.emit("install-log", line);
+        }
+    });
+    let h_err = app.clone();
+    let t_err = tokio::task::spawn_blocking(move || {
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            let _ = h_err.emit("install-log", line);
+        }
+    });
+
+    let _ = t_out.await;
+    let _ = t_err.await;
+
+    let status = tokio::time::timeout(
+        std::time::Duration::from_secs(600),
+        tokio::task::spawn_blocking(move || child.wait()),
+    )
+    .await
+    .map_err(|_| {
+        let _ = app.emit("install-log", "[timeout] 安装超时(10 分钟),请检查网络后重试");
+        AppError::Timeout("安装超时(10 分钟)".into())
+    })?
+    .map_err(|e| AppError::Io(format!("等待安装进程失败: {}", e)))?
+    .map_err(|e| AppError::Io(format!("安装进程异常: {}", e)))?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(AppError::ScadFailed(format!(
+            "安装进程退出码 {:?},详见日志输出",
+            status.code()
+        )))
+    }
+}
+
+/// 一键安装 CAD 依赖(pip,走清华镜像;--progress-bar off 输出干净的行流)
+#[tauri::command]
+pub async fn install_deps(
+    app: AppHandle,
+    python_path: String,
+) -> Result<(), AppError> {
+    use tauri::Emitter;
+    if !std::path::Path::new(&python_path).exists() {
+        return Err(AppError::Other(format!("路径不存在: {}", python_path)));
+    }
+    let _ = app.emit("install-log", format!("> pip install build123d shapely numpy(清华镜像)"));
+
+    let mut cmd = std::process::Command::new(&python_path);
+    cmd.arg("-m")
+        .arg("pip")
+        .arg("install")
+        .arg("--no-input")
+        .arg("--progress-bar")
+        .arg("off")
+        .arg("-i")
+        .arg("https://pypi.tuna.tsinghua.edu.cn/simple")
+        .arg("build123d")
+        .arg("shapely")
+        .arg("numpy");
+
+    run_with_log(&app, cmd).await
+}
+
+/// 一键安装 Python(winget 静默安装 3.12);成功后返回新装的 python 路径
+#[tauri::command]
+pub async fn install_python(app: AppHandle) -> Result<String, AppError> {
+    use tauri::Emitter;
+    let _ = app.emit("install-log", "> winget install Python.Python.3.12(静默安装)");
+
+    let mut cmd = std::process::Command::new("winget");
+    cmd.arg("install")
+        .arg("--id").arg("Python.Python.3.12")
+        .arg("-e")
+        .arg("--silent")
+        .arg("--disable-interactivity")
+        .arg("--accept-source-agreements")
+        .arg("--accept-package-agreements");
+
+    run_with_log(&app, cmd).await?;
+
+    // winget 装完 PATH 不一定对当前进程刷新:直接扫安装目录
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await; // 等文件落盘
+    let found = openscad_detect::find_python_in_localappdata()
+        .or_else(openscad_detect::find_python_in_path)
+        .ok_or_else(|| {
+            AppError::Other(
+                "winget 安装完成但未找到 python.exe,请手动选择安装位置".into(),
+            )
+        })?;
+    Ok(found)
 }
 
 /// 用户手动设置 Python 路径,持久化到 store

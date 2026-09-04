@@ -10,7 +10,8 @@ export default {
     config: "Parameters",
     screw: "Screw Layout",
     configured: "Ready",
-    notDetected: "Missing",
+    depsMissing: "Missing deps",
+    notDetected: "No Python",
   },
   settings: {
     button: "Settings",
@@ -91,13 +92,28 @@ export default {
     reset: "Reset to defaults",
   },
   python: {
-    needHint: "Requires Python 3.10+ with build123d and shapely. Install: pip install build123d shapely numpy",
-    pickFile: "Browse…",
-    savePath: "Save path",
+    // Status
+    ready: "Engine ready",
+    readyHint: "CAD engine is ready — you can generate models now",
+    missingDeps: "Missing CAD dependencies",
+    missingDepsHint: "Python found, but these required packages are missing:",
+    noPython: "Python not found",
+    noPythonHint: "This tool generates 3D models with Python (build123d). Python 3.10+ and three packages are required. About 200MB to download.",
+    checking: "Checking…",
+    // Buttons
+    installAll: "One-click install (automatic)",
+    installDeps: "Install dependencies",
+    installing: "Installing…",
+    pickFile: "Browse for python.exe",
+    openDownload: "Open download page",
     reDetect: "Re-detect",
-    detectAgain: "Detect again",
-    clearConfig: "Clear",
+    // Install log
+    installTitle: "Install log",
+    installDone: "Installation finished",
+    installFailed: "Installation failed",
+    pipHint: "pip uses the Tsinghua mirror; or run manually: pip install build123d shapely numpy",
     cleared: "Custom path cleared. Re-detect to use the system default.",
+    pythonInstalled: "Python installed. Installing dependencies…",
   },
   project: {
     load: "Load",
