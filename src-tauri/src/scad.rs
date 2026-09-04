@@ -171,25 +171,26 @@ impl Server {
 // ---------------------------------------------------------------------------
 
 /// 内置 Python 引擎(随安装包分发,用户零配置)
-/// 查找顺序:resource 目录(打包)→ src-tauri/resources(开发)→ exe 旁
+/// 查找顺序:开发源目录(完整,dev 权威)→ resource 目录(打包;数组语法保留目录树,
+/// 落在 resource_dir/resources/python-env)→ exe 旁(便携部署)
 pub fn bundled_python(app: Option<&AppHandle>) -> Option<String> {
-    if let Some(app) = app {
-        if let Ok(dir) = app.path().resource_dir() {
-            for rel in ["python-env", "resources/python-env"] {
-                let p = dir.join(rel).join("python.exe");
-                if p.exists() {
-                    return Some(p.to_string_lossy().into_owned());
-                }
-            }
-        }
-    }
-    // 开发模式:resources 原地(不经 resource_dir)
+    // 开发模式:resources 原地(CARGO_MANIFEST_DIR 编译期常量,发布机上不存在,自然跳过)
     let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("resources")
         .join("python-env")
         .join("python.exe");
     if dev.exists() {
         return Some(dev.to_string_lossy().into_owned());
+    }
+    if let Some(app) = app {
+        if let Ok(dir) = app.path().resource_dir() {
+            for rel in ["resources/python-env", "python-env"] {
+                let p = dir.join(rel).join("python.exe");
+                if p.exists() {
+                    return Some(p.to_string_lossy().into_owned());
+                }
+            }
+        }
     }
     // 兜底:exe 同级(便携部署)
     if let Ok(exe) = std::env::current_exe() {
