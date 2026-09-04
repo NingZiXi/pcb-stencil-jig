@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.0",
-    "@google/model-viewer": "^4.3.1",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-fs": "^2",
@@ -25,6 +24,7 @@
     "gerber-parser": "^4.2.7",
     "jszip": "^3.10.1",
     "pinia": "^2.2.0",
+    "three": "^0.185.1",
     "vue": "^3.5.13",
     "vue-i18n": "^9.14.5"
   },

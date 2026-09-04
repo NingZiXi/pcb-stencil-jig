@@ -92,11 +92,8 @@ function initThreeScene() {
 
   const r = new THREE.WebGLRenderer({ canvas, antialias: true });
   r.setSize(w, h);
-  r.setPixelRatio(window.devicePixelRatio);
-
-  // 坐标轴 — 帮助理解 3D 方向
-  const axes = new THREE.AxesHelper(30);
-  s.add(axes);
+  // HiDPI 屏 cap 到 2x:3x 的像素增益肉眼不可辨,填充率/显存开销却翻倍
+  r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   // 灯光
   s.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -107,6 +104,10 @@ function initThreeScene() {
   dirLight2.position.set(-100, 50, -100);
   s.add(dirLight2);
 
+  // 坐标轴
+  const axesHelper = new THREE.AxesHelper(30);
+  s.add(axesHelper);
+
   // 网格地板(颜色随主题)
   const gridHelper = new THREE.GridHelper(
     400, 20,
@@ -114,10 +115,6 @@ function initThreeScene() {
     ui.theme === "dark" ? 0x3A3A3D : 0xD4D4D4,
   );
   s.add(gridHelper);
-
-  // 坐标轴
-  const axesHelper = new THREE.AxesHelper(30);
-  s.add(axesHelper);
 
   // 控制器(支持自动旋转)
   const ctrl = new OrbitControls(cam, canvas);
@@ -134,11 +131,20 @@ function initThreeScene() {
   animate();
 }
 
+// 按需渲染:静止时不画,场景变化(invalidate)或相机运动(update 返回 true)才渲染
+let needsRender = true;
+
+function invalidate() {
+  needsRender = true;
+}
+
 function animate() {
   animationId.value = requestAnimationFrame(animate);
-  controls.value?.update();
-  if (scene.value && camera.value && renderer.value) {
+  if (!scene.value || !camera.value || !renderer.value) return;
+  const moved = controls.value ? controls.value.update() : false;
+  if (moved || needsRender) {
     renderer.value.render(scene.value, camera.value);
+    needsRender = false;
   }
 }
 
@@ -152,6 +158,7 @@ function disposeMesh() {
       currentMesh.value.material.dispose();
     }
     currentMesh.value = null;
+    invalidate();
   }
 }
 
@@ -237,6 +244,7 @@ function applyStlToMesh(bytes: number[]) {
 
   if (scene.value) scene.value.add(mesh);
   currentMesh.value = mesh;
+  invalidate();
 }
 
 // 防抖渲染(参数快速调整时)
@@ -278,15 +286,22 @@ watch(
     if (scene.value) {
       scene.value.background = new THREE.Color(theme === "dark" ? 0x232325 : 0xF5F5F5);
     }
-    // 替换旧网格
+    // 替换旧网格(remove + dispose,避免反复切换累积显存)
     const old = scene.value?.children.find((c) => c instanceof THREE.GridHelper);
-    if (old) scene.value?.remove(old);
+    if (old) {
+      scene.value?.remove(old);
+      old.geometry.dispose();
+      const mat = old.material as THREE.Material | THREE.Material[];
+      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+      else mat.dispose();
+    }
     const grid = new THREE.GridHelper(
       400, 20,
       theme === "dark" ? 0x5C5C5F : 0x737373,
       theme === "dark" ? 0x3A3A3D : 0xD4D4D4,
     );
     scene.value?.add(grid);
+    invalidate();
   }
 );
 
@@ -339,6 +354,7 @@ function onResize() {
   renderer.value.setSize(w, h);
   camera.value.aspect = w / h;
   camera.value.updateProjectionMatrix();
+  invalidate();
 }
 
 onMounted(() => {
