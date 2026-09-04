@@ -57,3 +57,29 @@ body,
   background: rgba(62, 125, 98, 0.12);
   color: #171717;
 }
+
+html.dark ::selection {
+  background: rgba(90, 155, 127, 0.28);
+  color: #E8E8E8;
+}
+
+/* 键盘焦点指示:Tab 导航时按钮/链接显示品牌色描边(鼠标点击不触发) */
+button:focus-visible,
+a:focus-visible,
+[role='button']:focus-visible,
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 2px solid var(--bg-brand);
+  outline-offset: -2px;
+}
+
+/* 无边框窗口描边:Win10 下窗口不再融入桌面;
+   Win11 系统圆角会裁掉四角,不冲突 */
+#app::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  border: 1px solid var(--border-neutral-l2);
+  pointer-events: none;
+  z-index: 2147483647;
+}

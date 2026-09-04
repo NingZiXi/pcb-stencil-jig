@@ -51,6 +51,8 @@ export default {
     noPythonRender: "Python not detected — cannot render",
     noPythonExport: "Python not detected — cannot export",
     hint: "Drag to rotate · Right-drag to pan · Scroll to zoom",
+    emptyLine1: "Drop a Gerber ZIP to detect the board outline",
+    emptyLine2: "Adjust parameters — all three parts update live",
     exported: "Exported 3 STL files to {dir}",
     exportFailed: "Export failed: {msg}",
     renderFailed: "Render failed: {msg}",

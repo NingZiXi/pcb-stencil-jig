@@ -443,6 +443,18 @@ const partTabs = computed(() => [
 
     <div class="canvas-container">
       <canvas ref="canvasEl" />
+      <!-- 空状态引导:无模型、无加载、无错误时显示 -->
+      <div
+        v-if="!currentMesh && !loading && !errorMsg && store.pythonDetected"
+        class="empty-state"
+      >
+        <svg viewBox="0 0 64 64" width="44" height="44" class="empty-icon">
+          <rect x="5" y="5" width="54" height="54" rx="11" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="7,5" />
+          <rect x="24" y="24" width="16" height="16" rx="3" fill="currentColor" opacity="0.55" />
+        </svg>
+        <p class="empty-line1">{{ t('preview.emptyLine1') }}</p>
+        <p class="empty-line2">{{ t('preview.emptyLine2') }}</p>
+      </div>
       <div v-if="loading" class="overlay">
         <svg class="spin-icon" viewBox="0 0 16 16" width="20" height="20">
           <path d="M8 2a6 6 0 1 0 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
@@ -604,6 +616,36 @@ canvas {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* 空状态引导 */
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.empty-icon {
+  color: var(--border-neutral-l3);
+  margin-bottom: 8px;
+}
+
+.empty-line1 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--text-tertiary);
+}
+
+.empty-line2 {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-disabled);
 }
 
 /* Overlays */

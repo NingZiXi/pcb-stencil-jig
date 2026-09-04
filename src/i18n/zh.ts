@@ -51,6 +51,8 @@ export default {
     noPythonRender: "Python 环境未检测到,无法渲染",
     noPythonExport: "Python 环境未检测到,无法导出",
     hint: "左键旋转 · 右键平移 · 滚轮缩放",
+    emptyLine1: "拖入 Gerber ZIP 自动识别板框",
+    emptyLine2: "调整左侧参数,三部件模型实时生成",
     exported: "已导出 3 个 STL 到 {dir}",
     exportFailed: "导出失败: {msg}",
     renderFailed: "渲染失败: {msg}",
