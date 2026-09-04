@@ -20,6 +20,13 @@ src-tauri/gen
 __pycache__/
 *.pyc
 
+# CAD 导出产物 / 调试残留(不入库)
+*.STEP
+*.stl
+python/test_input.json
+python/test_polygon.json
+test_params.json
+
 # Claude Code 本地配置
 .claude/
 
