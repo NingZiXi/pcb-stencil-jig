@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  frontend:
+    name: 前端(类型检查 + 单元测试)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: 类型检查
+        run: npx vue-tsc --noEmit
+      - name: 单元测试(Gerber 解析器等)
+        run: npx vitest run
+
+  geometry:
+    name: 几何验证(build123d 三部件几何 + TS/Python 布局一致性)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: 安装几何依赖
+        run: pip install build123d shapely numpy
+      - name: 运行几何验证测试
+        run: python python/tests/run_all.py
