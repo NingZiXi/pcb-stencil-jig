@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, nextTick, onMounted, onBeforeUnmount, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useI18n } from "vue-i18n";
@@ -23,16 +23,27 @@ const { t } = useI18n();
 const epLocale = computed(() => (ui.locale === "en" ? enLocale : zhCn));
 
 // ===== 自定义标题栏(decorations:false,与页眉融合) =====
-const appWindow = getCurrentWindow();
+// 浏览器环境(纯 vite dev 预览)无 Tauri 窗口 API,兜底成空实现以便 UI 调试
+const appWindow = (() => {
+  try {
+    return getCurrentWindow();
+  } catch {
+    return {
+      isMaximized: async () => false,
+      toggleMaximize: async () => {},
+      onResized: async () => () => {},
+    } as unknown as ReturnType<typeof getCurrentWindow>;
+  }
+})();
 const isMaximized = ref(false);
 let unlistenMaximize: UnlistenFn | null = null;
 
 async function initWindowState() {
   isMaximized.value = await appWindow.isMaximized();
   // 旧版 @tauri-apps/api 无 onMaximizedChanged,用 onResized + 查询代替
-  unlistenMaximize = await appWindow.onResized(async () => {
+  unlistenMaximize = (await appWindow.onResized(async () => {
     isMaximized.value = await appWindow.isMaximized();
-  });
+  })) as unknown as UnlistenFn;
 }
 
 // 双击页眉空白 → 最大化/还原(Windows 标题栏惯例);交互控件上双击不触发
@@ -63,6 +74,13 @@ const cardHeights = ref<Record<string, number>>({
   config: 520,
   screw: 360,
 });
+// 卡片高度是否自适应内容(展开即完整显示);用户手动拖过 → false 锁定像素
+const autoHeights = ref<Record<string, boolean>>({
+  python: true,
+  gerber: true,
+  config: true,
+  screw: true,
+});
 // Python 环境卡片默认折叠
 const collapsed = ref<Record<string, boolean>>({
   python: true,
@@ -72,6 +90,7 @@ const collapsed = ref<Record<string, boolean>>({
 });
 
 const HEIGHTS_KEY = "psj_card_heights";
+const AUTO_KEY = "psj_card_auto";
 const COLLAPSED_KEY = "psj_card_collapsed";
 
 // 从 localStorage 恢复
@@ -88,6 +107,13 @@ try {
       cardHeights.value = { ...cardHeights.value, ...parsed };
     }
   }
+  const a = localStorage.getItem(AUTO_KEY);
+  if (a) {
+    const parsed = JSON.parse(a);
+    if (parsed && typeof parsed === "object") {
+      autoHeights.value = { ...autoHeights.value, ...parsed };
+    }
+  }
   const c = localStorage.getItem(COLLAPSED_KEY);
   if (c) {
     const parsed = JSON.parse(c);
@@ -101,6 +127,7 @@ function saveSettings() {
   try {
     localStorage.setItem(SIDEBAR_KEY, String(sidebarWidth.value));
     localStorage.setItem(HEIGHTS_KEY, JSON.stringify(cardHeights.value));
+    localStorage.setItem(AUTO_KEY, JSON.stringify(autoHeights.value));
     localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed.value));
   } catch { /* ignore */ }
 }
@@ -152,7 +179,9 @@ function onHeightDown(id: string, e: MouseEvent) {
   isResizingHeight = true;
   heightCardId = id;
   heightStartY = e.clientY;
-  heightStartH = cardHeights.value[id];
+  // 起点 = 卡片当前实际高度(自适应模式下没有存储值可用)
+  const slot = (e.currentTarget as HTMLElement).parentElement;
+  heightStartH = slot ? slot.offsetHeight : cardHeights.value[id];
   document.body.style.cursor = "ns-resize";
   document.body.style.userSelect = "none";
   e.preventDefault();
@@ -161,6 +190,10 @@ function onHeightDown(id: string, e: MouseEvent) {
 
 function onHeightMove(e: MouseEvent) {
   if (!isResizingHeight) return;
+  // 用户开始拖 → 退出自适应,锁定像素高度
+  if (autoHeights.value[heightCardId]) {
+    autoHeights.value[heightCardId] = false;
+  }
   const newH = heightStartH + (e.clientY - heightStartY);
   const clamped = Math.max(CARD_MIN, Math.min(CARD_MAX, newH));
   cardHeights.value[heightCardId] = clamped;
@@ -176,15 +209,58 @@ function onHeightUp() {
   }
 }
 
+// 双击拖拽条 → 恢复自适应内容高度
+function onHandleDblClick(id: string) {
+  if (collapsed.value[id]) return;
+  autoHeights.value[id] = true;
+  saveSettings();
+}
+
+
+// 锁定高度装不下内容自然高度时恢复自适应(内容后来变高了,旧锁定值已过时)。
+// "锁定 + 内容溢出滚动"场景下,内部滚动区里的按钮真实点击会不可靠地
+// 不触发(实测:手动 click 正常、真实点击失效),所以从根上不让该场景存在
+function ensureHeightFits(id: string) {
+  if (collapsed.value[id] || autoHeights.value[id]) return;
+  const slot = document.getElementById(`slot-${id}`);
+  const slotBody = slot?.querySelector<HTMLElement>(".slot-body");
+  if (!slotBody) return;
+  const need = slotBody.scrollHeight + CARD_COLLAPSED + 24;
+  if (cardHeights.value[id] < need - 40) {
+    autoHeights.value[id] = true;
+  }
+}
 
 // ===== 卡片折叠切换 =====
 function toggleCollapse(id: string) {
   collapsed.value[id] = !collapsed.value[id];
+  // 展开时:必须等 v-show 渲染完(nextTick)再量,否则量到的是折叠态高度
+  if (!collapsed.value[id] && !autoHeights.value[id]) {
+    void nextTick(() => ensureHeightFits(id));
+  }
   saveSettings();
 }
 
-function getSlotHeight(id: string): number {
-  return collapsed.value[id] ? CARD_COLLAPSED : cardHeights.value[id];
+// 内容高度变化(高级区开合、提示出现等)后复查:锁定值装不下就恢复自适应
+const CARD_IDS = ["python", "gerber", "config", "screw"] as const;
+let contentObserver: ResizeObserver | null = null;
+
+function observeCardContent(id: string) {
+  const slot = document.getElementById(`slot-${id}`);
+  const slotBody = slot?.querySelector<HTMLElement>(".slot-body");
+  if (!slotBody) return;
+  contentObserver?.observe(slotBody);
+  // 锁定高度时 slot-body 尺寸被夹死,内容增长它自己不变大,
+  // 必须观察内容根元素(高级区开合/提示出现时它会实际变高)
+  const contentRoot = slotBody.firstElementChild as HTMLElement | null;
+  if (contentRoot) contentObserver?.observe(contentRoot);
+}
+
+// 卡片高度:折叠=固定条高;自适应=内容自然高度;手动拖过=锁定像素
+function slotStyle(id: string): Record<string, string> {
+  if (collapsed.value[id]) return { height: CARD_COLLAPSED + "px" };
+  if (autoHeights.value[id]) return { height: "auto" };
+  return { height: cardHeights.value[id] + "px" };
 }
 
 function onSizeDetected(payload: {
@@ -209,6 +285,13 @@ onMounted(() => {
   document.addEventListener("mouseup", onWidthUp);
   document.addEventListener("mousemove", onHeightMove);
   document.addEventListener("mouseup", onHeightUp);
+  // 内容高度变化复查(等首帧渲染完再挂,避免初始布局抖动误判)
+  void nextTick(() => {
+    contentObserver = new ResizeObserver(() => {
+      for (const id of CARD_IDS) ensureHeightFits(id);
+    });
+    for (const id of CARD_IDS) observeCardContent(id);
+  });
 });
 
 onBeforeUnmount(() => {
@@ -216,6 +299,8 @@ onBeforeUnmount(() => {
   document.removeEventListener("mouseup", onWidthUp);
   document.removeEventListener("mousemove", onHeightMove);
   document.removeEventListener("mouseup", onHeightUp);
+  contentObserver?.disconnect();
+  contentObserver = null;
 });
 </script>
 
@@ -281,7 +366,7 @@ onBeforeUnmount(() => {
     <main class="app-main">
       <aside class="app-sidebar" :style="{ width: sidebarWidth + 'px' }">
         <!-- Python Environment -->
-        <div class="card-slot" :style="{ height: getSlotHeight('python') + 'px' }">
+        <div id="slot-python" class="card-slot" :style="slotStyle('python')">
           <div class="slot-header" @click="toggleCollapse('python')">
             <div class="slot-label">
               <span class="slot-step-dot" data-icon="py">Py</span>
@@ -305,12 +390,14 @@ onBeforeUnmount(() => {
           <div
             v-if="!collapsed.python"
             class="drag-handle"
+            title="拖动调整高度,双击恢复自适应"
             @mousedown="onHeightDown('python', $event)"
+            @dblclick="onHandleDblClick('python')"
           />
         </div>
 
         <!-- Gerber Import -->
-        <div class="card-slot" :style="{ height: getSlotHeight('gerber') + 'px' }">
+        <div id="slot-gerber" class="card-slot" :style="slotStyle('gerber')">
           <div class="slot-header" @click="toggleCollapse('gerber')">
             <div class="slot-label">
               <span class="slot-step-dot" data-step="1">1</span>
@@ -326,12 +413,14 @@ onBeforeUnmount(() => {
           <div
             v-if="!collapsed.gerber"
             class="drag-handle"
+            title="拖动调整高度,双击恢复自适应"
             @mousedown="onHeightDown('gerber', $event)"
+            @dblclick="onHandleDblClick('gerber')"
           />
         </div>
 
         <!-- Config Form -->
-        <div class="card-slot" :style="{ height: getSlotHeight('config') + 'px' }">
+        <div id="slot-config" class="card-slot" :style="slotStyle('config')">
           <div class="slot-header" @click="toggleCollapse('config')">
             <div class="slot-label">
               <span class="slot-step-dot" data-step="2">2</span>
@@ -347,12 +436,14 @@ onBeforeUnmount(() => {
           <div
             v-if="!collapsed.config"
             class="drag-handle"
+            title="拖动调整高度,双击恢复自适应"
             @mousedown="onHeightDown('config', $event)"
+            @dblclick="onHandleDblClick('config')"
           />
         </div>
 
         <!-- Screw Diagram -->
-        <div class="card-slot" :style="{ height: getSlotHeight('screw') + 'px' }">
+        <div id="slot-screw" class="card-slot" :style="slotStyle('screw')">
           <div class="slot-header" @click="toggleCollapse('screw')">
             <div class="slot-label">
               <span class="slot-step-dot" data-step="3">3</span>
@@ -368,7 +459,9 @@ onBeforeUnmount(() => {
           <div
             v-if="!collapsed.screw"
             class="drag-handle"
+            title="拖动调整高度,双击恢复自适应"
             @mousedown="onHeightDown('screw', $event)"
+            @dblclick="onHandleDblClick('screw')"
           />
         </div>
       </aside>

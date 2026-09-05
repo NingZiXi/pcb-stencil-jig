@@ -45,9 +45,9 @@ function paramsHash() {
   // pcbOutlinePoints 用完整点列表:同点数的异形板框也要正确失效
   return JSON.stringify({
     pcb: [c.pcbSizeX, c.pcbSizeY, c.pcbThickness, c.pcbPocketClearance, c.pcbOutlinePoints, c.pcbOutlineHoles],
-    stencil: [c.stencilSize, c.stencilSize],
     screw: [c.screwSpacing],
-    dims: [c.baseHeight, c.topCoverHeight, c.postDiameter, c.postHeight, c.thumbscrewHeadD, c.thumbscrewClearanceD, c.jigSize, c.jigSize, c.insertHeight, c.pcbSupportRadius, c.pcbSupportOffset],
+    dims: [c.baseHeight, c.topCoverHeight, c.jigSize, c.insertHeight, c.platterHeight, c.platterMargin, c.platterCornerRadius, c.ejectSlotWidth, c.cornerScrewD, c.periScrewD, c.outerCornerRadius],
+    notch: [c.pryNotchSides, c.pryNotchScale],
   });
 }
 
@@ -64,14 +64,17 @@ function buildScadParams() {
     screw_spacing: c.screwSpacing,
     base_height: c.baseHeight,
     top_cover_height: c.topCoverHeight,
-    post_diameter: c.postDiameter,
-    post_height: c.postHeight,
-    thumbscrew_head_d: c.thumbscrewHeadD,
-    thumbscrew_clearance_d: c.thumbscrewClearanceD,
     jig_size: c.jigSize,
     insert_height: c.insertHeight,
-    pcb_support_radius: c.pcbSupportRadius,
-    pcb_support_offset: c.pcbSupportOffset,
+    platter_height: c.platterHeight,
+    platter_margin: c.platterMargin,
+    platter_corner_radius: c.platterCornerRadius,
+    eject_slot_width: c.ejectSlotWidth,
+    pry_notch_sides: c.pryNotchSides,
+    pry_notch_scale: c.pryNotchScale,
+    corner_screw_d: c.cornerScrewD,
+    peri_screw_d: c.periScrewD,
+    outer_corner_radius: c.outerCornerRadius,
   };
 }
 
@@ -182,6 +185,10 @@ async function renderCurrent() {
   const hash = paramsHash();
   if (cached && cached.paramsHash === hash) {
     applyStlToMesh(cached.bytes);
+    // 接管 loading:本次渲染已同步完成,而在途的旧请求(seq 已过期)
+    // 的 finally 不会清 loading —— 不接管会永久转圈
+    loading.value = false;
+    errorMsg.value = null;
     return;
   }
 

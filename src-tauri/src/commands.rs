@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
-/// 与前端 TS 类型保持一致的参数结构
+/// 与前端 TS 类型保持一致的参数结构(v2 结构:参考商用钢网夹)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScadParams {
     pub pcb_size_x: f64,
@@ -23,25 +23,53 @@ pub struct ScadParams {
     #[serde(default)]
     pub pcb_outline_holes: Vec<Vec<[f64; 2]>>,
     pub stencil_size: f64,
+    /// 周圈螺丝间距(B 面配置;0 = 关闭周圈孔)
     pub screw_spacing: f64,
     pub base_height: f64,
     pub top_cover_height: f64,
-    pub post_diameter: f64,
-    pub post_height: f64,
-    pub thumbscrew_head_d: f64,
-    pub thumbscrew_clearance_d: f64,
     pub jig_size: f64,
     #[serde(default = "default_insert_height")]
     pub insert_height: f64,
-    #[serde(default = "default_support_radius")]
-    pub pcb_support_radius: f64,
-    #[serde(default = "default_support_offset")]
-    pub pcb_support_offset: f64,
+    // --- v2 新参数(旧项目文件缺省时用默认值) ---
+    /// 凸台高度(其余为底板)
+    #[serde(default = "default_platter_height")]
+    pub platter_height: f64,
+    /// 凸台台阶宽(槽到凸台外缘)
+    #[serde(default = "default_platter_margin")]
+    pub platter_margin: f64,
+    /// 矩形板凸台圆角半径
+    #[serde(default = "default_platter_corner_radius")]
+    pub platter_corner_radius: f64,
+    /// 顶出槽宽(0 = 关闭):端墙撬口宽;底部圆形顶出孔直径随板尺寸自适应
+    #[serde(default = "default_eject_slot_width")]
+    pub eject_slot_width: f64,
+    /// 取放缺口位置:up / down / left / right 任意组合(空 = 关闭)
+    #[serde(default = "default_pry_notch_sides")]
+    pub pry_notch_sides: Vec<String>,
+    /// 取放缺口大小比例(0.5~1.5,默认 1.0)
+    #[serde(default = "default_pry_notch_scale")]
+    pub pry_notch_scale: f64,
+    /// 4 角压钢网螺丝直径(M5)
+    #[serde(default = "default_corner_screw_d")]
+    pub corner_screw_d: f64,
+    /// 周圈螺丝直径(M3.5)
+    #[serde(default = "default_peri_screw_d")]
+    pub peri_screw_d: f64,
+    /// 外缘圆角半径
+    #[serde(default = "default_outer_corner_radius")]
+    pub outer_corner_radius: f64,
 }
 
 fn default_insert_height() -> f64 { 8.0 }
-fn default_support_radius() -> f64 { 5.0 }
-fn default_support_offset() -> f64 { 58.0 }
+fn default_platter_height() -> f64 { 4.0 }
+fn default_platter_margin() -> f64 { 5.0 }
+fn default_platter_corner_radius() -> f64 { 4.5 }
+fn default_eject_slot_width() -> f64 { 22.0 }
+fn default_pry_notch_sides() -> Vec<String> { vec!["down".to_string()] }
+fn default_pry_notch_scale() -> f64 { 1.0 }
+fn default_corner_screw_d() -> f64 { 5.0 }
+fn default_peri_screw_d() -> f64 { 3.5 }
+fn default_outer_corner_radius() -> f64 { 5.0 }
 
 /// 部件标识
 #[derive(Debug, Clone, Serialize, Deserialize)]
